@@ -1538,6 +1538,7 @@ function deleteTask(id) {
   var t = tasks.find(function(x){ return x.id===id; });
   confirmDialog('Delete this action?', 'This cannot be undone.', 'Delete', function() {
     if(t) addTrailEvent(id, t.text, 'Deleted');
+    recordDeleted(id);
     tasks = tasks.filter(function(x){ return x.id!==id; });
     saveTasks(); closeOverlay('detail-overlay'); render(); toast('Action deleted');
   });
@@ -3227,7 +3228,18 @@ function checkEOD(){ if(shouldShowEOD()) openEOD(); }
 ══════════════════════════════════════════ */
 var SUPA_URL = 'https://hfciytpbjtijlzgtznqv.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmY2l5dHBianRpamx6Z3R6bnF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjIxMzUsImV4cCI6MjA5Nzc5ODEzNX0.WWmwBKe2yGaLUwsPMK8KRZ7nJBjT_Q74PRuHL7rORH0';
-var SYNC_LAST_KEY = 'maxa_sync_last';
+var DELETED_KEY = 'maxa_deleted_v1';
+function getDeletedIds() {
+  try { var r=lsGet(DELETED_KEY); return r?JSON.parse(r):{}; } catch(e){ return {}; }
+}
+function recordDeleted(id) {
+  var d=getDeletedIds(); d[id]=Date.now();
+  // Keep last 500 deleted IDs only
+  var keys=Object.keys(d); if(keys.length>500){
+    keys.sort(function(a,b){return d[a]-d[b];}).slice(0,keys.length-500).forEach(function(k){delete d[k];});
+  }
+  try { lsSet(DELETED_KEY, JSON.stringify(d)); } catch(e){}
+}
 var _syncing = false;
 var _backgroundSync = false;
 
@@ -3248,9 +3260,10 @@ function setSyncDot(state) {
   if(lbl) lbl.textContent = state==='ok'?'Synced ✓':state==='error'?'Sync error':'Sync';
 }
 
-async function supaFetch(method, table, body) {
+async function supaFetch(method, table, body, deleteId) {
   var url = SUPA_URL + '/rest/v1/' + table;
   if(method === 'GET') url += '?select=*';
+  if(method === 'DELETE' && deleteId) url += '?id=eq.' + encodeURIComponent(deleteId);
   var opts = {
     method: method,
     headers: {
@@ -3275,17 +3288,43 @@ async function syncPush(showToast) {
   _syncing = true;
   if(showToast) setSyncDot('syncing');
   try {
-    // Upsert all tasks as {id, data, updated_at} rows
+    // Upsert all current tasks
     var taskRows = tasks.map(function(t) {
       return {id: t.id, data: t, updated_at: new Date().toISOString()};
     });
     if(taskRows.length > 0) {
-      // Supabase upsert in batches of 50 to stay well within limits
       for(var i=0; i<taskRows.length; i+=50) {
         await supaFetch('POST', 'tasks', taskRows.slice(i, i+50));
       }
     }
-    // Upsert members
+
+    // Delete from Supabase any tasks that no longer exist locally
+    // Fetch current Supabase IDs and remove any not in local tasks
+    try {
+      var remoteRows = await supaFetch('GET', 'tasks');
+      if(Array.isArray(remoteRows) && remoteRows.length > 0) {
+        var localIds = {};
+        tasks.forEach(function(t){ localIds[t.id] = true; });
+        var toDelete = remoteRows.filter(function(r){ return !localIds[r.id]; });
+        for(var j=0; j<toDelete.length; j++) {
+          await supaFetch('DELETE', 'tasks', null, toDelete[j].id);
+        }
+        if(toDelete.length > 0) console.log('Deleted', toDelete.length, 'removed tasks from Supabase');
+
+        // Also push our tombstone so other devices know what was deleted
+        var deletedIds = getDeletedIds();
+        var deletedKeys = Object.keys(deletedIds);
+        if(deletedKeys.length > 0) {
+          // Store tombstone as a special tasks row with id='__deleted__'
+          var tombstoneRow = {id:'__deleted__', data:{ids: deletedIds}, updated_at: new Date().toISOString()};
+          await supaFetch('POST', 'tasks', [tombstoneRow]);
+        }
+      }
+    } catch(delErr) {
+      console.warn('Delete sync error (non-fatal):', delErr.message);
+    }
+
+    // Upsert members (strip photos)
     var memberRows = members.map(function(m) {
       var copy = {};
       for(var k in m) { if(k !== 'photo') copy[k] = m[k]; }
@@ -3294,6 +3333,7 @@ async function syncPush(showToast) {
     if(memberRows.length > 0) {
       await supaFetch('POST', 'members', memberRows);
     }
+
     lsSet(SYNC_LAST_KEY, Date.now().toString());
     setSyncDot('ok');
     if(showToast) toast('Pushed to Supabase ✓');
@@ -3320,8 +3360,20 @@ async function syncPull(showToast) {
     var dataChanged = false;
 
     if(Array.isArray(taskRows) && taskRows.length > 0) {
+      // Extract and apply tombstone row first
+      var tombstoneRow = taskRows.find(function(r){ return r.id === '__deleted__'; });
+      if(tombstoneRow && tombstoneRow.data && tombstoneRow.data.ids) {
+        var remoteDeleted = tombstoneRow.data.ids;
+        var localDeleted  = getDeletedIds();
+        var merged_deleted = Object.assign({}, localDeleted, remoteDeleted);
+        try { lsSet(DELETED_KEY, JSON.stringify(merged_deleted)); } catch(e){}
+        // Remove any locally held tasks that were deleted on another device
+        var beforeCount = tasks.length;
+        tasks = tasks.filter(function(t){ return !remoteDeleted[t.id]; });
+        if(tasks.length < beforeCount) { _origSaveTasks(); dataChanged = true; }
+      }
       // Parse data field if it came back as a string
-      var sheetTasks = taskRows.map(function(r) {
+      var sheetTasks = taskRows.filter(function(r){ return r.id !== '__deleted__'; }).map(function(r) {
         if(!r.data) return null;
         if(typeof r.data === 'string') {
           try { return JSON.parse(r.data); } catch(e) { return null; }
@@ -3332,13 +3384,17 @@ async function syncPull(showToast) {
       console.log('Pull: sheetTasks after parse='+sheetTasks.length);
 
       if(sheetTasks.length > 0) {
+        var deletedIds = getDeletedIds();
         var localMap = {};
         tasks.forEach(function(t) { localMap[t.id] = t; });
         var sheetMap = {};
         sheetTasks.forEach(function(t) { sheetMap[t.id] = t; });
         var allIds = {};
         Object.keys(localMap).forEach(function(id) { allIds[id] = true; });
-        Object.keys(sheetMap).forEach(function(id) { allIds[id] = true; });
+        // Only add remote IDs if not in tombstone
+        Object.keys(sheetMap).forEach(function(id) {
+          if(!deletedIds[id]) allIds[id] = true;
+        });
         var merged = Object.keys(allIds).map(function(id) {
           var local  = localMap[id];
           var remote = sheetMap[id];
