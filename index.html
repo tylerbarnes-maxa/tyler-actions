@@ -254,17 +254,10 @@ body.dark input,body.dark textarea,body.dark select{background:var(--card);color
 body.dark .seg-opt{background:var(--card);border-color:var(--border);color:var(--text-secondary)}
 body.dark .more-menu-item{background:var(--card)}
 body.dark #more-menu{background:var(--card)}
-body.dark .ptr-indicator{background:var(--bg)}
 /* ── DARK MODE TOGGLE ── */
 .theme-toggle{background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.5);font-size:16px;padding:4px 8px;border-radius:20px;font-family:inherit;transition:all 0.15s;display:flex;align-items:center;gap:5px}
 .theme-toggle:hover{color:#fff;background:rgba(255,255,255,0.1)}
-/* ── PULL TO REFRESH ── */
-.ptr-indicator{display:flex;align-items:center;justify-content:center;gap:8px;height:0;overflow:hidden;font-size:12px;font-weight:600;color:var(--text-muted);background:var(--bg);transition:height 0.15s}
-.ptr-indicator.visible{height:40px}
-.ptr-indicator.ready{color:var(--maxa-yellow)}
-.ptr-spinner{width:16px;height:16px;border:2.5px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0}
-.ptr-arrow{font-size:16px;transition:transform 0.2s}
-.ptr-indicator.ready .ptr-arrow{transform:rotate(180deg)}
+
 /* ── MORNING BRIEFING ── */
 .morning-card{background:var(--maxa-black);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:10px;position:relative;overflow:hidden}
 .morning-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--maxa-yellow),#F1DD39,var(--maxa-yellow))}
@@ -596,10 +589,6 @@ textarea{resize:vertical;min-height:70px}
 
     <div class="search-wrap" id="search-wrap" style="display:none">
       <input class="search-input" type="text" id="search-input" placeholder="Search actions…" oninput="render()" autocomplete="off">
-    </div>
-    <div class="ptr-indicator" id="ptr-indicator">
-      <span class="ptr-arrow" id="ptr-arrow">↓</span>
-      <span id="ptr-label">Pull to refresh</span>
     </div>
     <main class="content" id="content"></main>
   </div>
@@ -1091,7 +1080,7 @@ input[type=range]{accent-color:var(--maxa-yellow);width:100%}
    DATA & STORAGE
 ══════════════════════════════════════════ */
 /* ── WORKSPACE SYSTEM ── */
-var CURRENT_WS = localStorage.getItem('maxa_workspace') || 'maxa';
+var CURRENT_WS = lsGet('maxa_workspace') || 'maxa';
 
 var WORKSPACES = {
   maxa: {
@@ -1187,7 +1176,7 @@ function load() {
 
   try {
     // ── TASKS ──
-    var rt = localStorage.getItem(STORE_TASKS());
+    var rt = lsGet(STORE_TASKS());
     if(rt) {
       var parsedTasks = JSON.parse(rt);
       if(Array.isArray(parsedTasks)) {
@@ -1201,7 +1190,7 @@ function load() {
         var allMaxaTasks = CURRENT_WS !== 'maxa' && parsedTasks.length > 0 &&
           parsedTasks.every(function(t){ return maxaOnlyCtx.indexOf(t.ctx) >= 0; });
         if(allMaxaTasks) {
-          localStorage.removeItem(STORE_TASKS());
+          lsRemove(STORE_TASKS());
           tasks = [];
         } else {
           tasks = parsedTasks;
@@ -1210,7 +1199,7 @@ function load() {
     }
 
     // ── MEMBERS ──
-    var rm = localStorage.getItem(STORE_MEMBERS());
+    var rm = lsGet(STORE_MEMBERS());
     if(rm) {
       var parsedMembers = JSON.parse(rm);
       if(Array.isArray(parsedMembers) && parsedMembers.length > 0) {
@@ -1219,7 +1208,7 @@ function load() {
         var allMaxaMembers = CURRENT_WS !== 'maxa' &&
           parsedMembers.every(function(m){ return maxaMemberIds.indexOf(m.id) >= 0; });
         if(allMaxaMembers) {
-          localStorage.removeItem(STORE_MEMBERS());
+          lsRemove(STORE_MEMBERS());
           members = [];
         } else {
           members = parsedMembers;
@@ -1258,9 +1247,9 @@ function saveTasks() {
   // Stamp a modified timestamp on any task missing one
   var now = Date.now();
   tasks.forEach(function(t){ if(!t.modified) t.modified = t.created || now; });
-  try { localStorage.setItem(STORE_TASKS(), JSON.stringify(tasks)); } catch(e) {}
+  try { lsSet(STORE_TASKS(), JSON.stringify(tasks)); } catch(e) {}
 }
-function saveMembers() { try { localStorage.setItem(STORE_MEMBERS(), JSON.stringify(members)); } catch(e){} }
+function saveMembers() { try { lsSet(STORE_MEMBERS(), JSON.stringify(members)); } catch(e){} }
 
 function seed() {
   var t = today();
@@ -1281,19 +1270,19 @@ function seed() {
 /* ── OTHER CONTACTS STORE ── */
 var CONTACTS_KEY = 'maxa_contacts_v1';
 function getContacts() {
-  try { var r=localStorage.getItem(CONTACTS_KEY); return r?JSON.parse(r):[]; } catch(e){ return []; }
+  try { var r=lsGet(CONTACTS_KEY); return r?JSON.parse(r):[]; } catch(e){ return []; }
 }
 function saveContact(name, email) {
   if(!name || name==='Me' || name==='Other') return;
   var contacts = getContacts();
   var existing = contacts.find(function(c){ return c.name.toLowerCase()===name.toLowerCase(); });
   if(existing) {
-    if(email && !existing.email) { existing.email=email; localStorage.setItem(CONTACTS_KEY,JSON.stringify(contacts)); }
+    if(email && !existing.email) { existing.email=email; lsSet(CONTACTS_KEY, JSON.stringify(contacts)); }
     return;
   }
   contacts.unshift({name:name, email:email||''});
   if(contacts.length>20) contacts=contacts.slice(0,20);
-  localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+  lsSet(CONTACTS_KEY, JSON.stringify(contacts));
 }
 function buildOtherContactsList() {
   var list = document.getElementById('other-saved-list');
@@ -2005,7 +1994,7 @@ var LEDGER_KEY = 'maxa_stats_ledger_v1';
 
 function getLedger() {
   try {
-    var r = localStorage.getItem(LEDGER_KEY);
+    var r = lsGet(LEDGER_KEY);
     return r ? JSON.parse(r) : {};
   } catch(e) { return {}; }
 }
@@ -2019,29 +2008,26 @@ function recordCompletion(task) {
   ledger[assignee].completions++;
   // On-time = completed and due date hasn't passed yet
   if(!isOver(task.due)) ledger[assignee].onTime++;
-  try { localStorage.setItem(LEDGER_KEY, JSON.stringify(ledger)); } catch(e) {}
+  try { lsSet(LEDGER_KEY, JSON.stringify(ledger)); } catch(e) {}
 }
 
 function calcStats(personTasks, assigneeName) {
-  // Current open tasks for this person
   var openOver = personTasks.filter(function(t){ return !t.done && isOver(t.due); }).length;
   var openOk   = personTasks.filter(function(t){ return !t.done && !isOver(t.due); }).length;
   var total    = personTasks.length;
 
-  // Pull all-time completions from ledger
-  var ledger   = getLedger();
-  var record   = assigneeName ? (ledger[assigneeName] || null) : null;
-  var completed = record ? record.completions : personTasks.filter(function(t){ return t.done; }).length;
+  // Always use persistent ledger for all-time on-time rate
+  var ledger  = getLedger();
+  var record  = assigneeName ? (ledger[assigneeName] || null) : null;
+  var completed = record ? record.completions
+    : personTasks.filter(function(t){ return t.done; }).length;
   var onTimeRate = null;
   if(record && record.completions > 0) {
     onTimeRate = Math.round((record.onTime / record.completions) * 100);
-  } else {
-    // Fall back to tasks array for people with no ledger entry yet
-    var compWithDue = personTasks.filter(function(t){ return t.done && t.due; });
-    var onTime = compWithDue.filter(function(t){ return !isOver(t.due); }).length;
-    onTimeRate = compWithDue.length > 0 ? Math.round((onTime / compWithDue.length) * 100) : null;
   }
-  return { total: total, completed: completed, openOver: openOver, openOk: openOk, onTimeRate: onTimeRate };
+  // Note: if no ledger record yet, onTimeRate stays null (shows — in ring)
+  // Once first task is completed for this person it starts tracking
+  return { total:total, completed:completed, openOver:openOver, openOk:openOk, onTimeRate:onTimeRate };
 }
 
 function ringColor(pct) {
@@ -2428,18 +2414,18 @@ var GSD_QUOTES = [
 var _quoteIdx = -1;
 function getDayQuote() {
   var day = new Date().toDateString();
-  var stored = localStorage.getItem('maxa_quote_day');
-  var storedIdx = parseInt(localStorage.getItem('maxa_quote_idx') || '-1');
+  var stored = lsGet('maxa_quote_day');
+  var storedIdx = parseInt(lsGet('maxa_quote_idx') || '-1');
   if(stored === day && storedIdx >= 0) return GSD_QUOTES[storedIdx % GSD_QUOTES.length];
   var idx = Math.floor(Math.random() * GSD_QUOTES.length);
-  localStorage.setItem('maxa_quote_day', day);
-  localStorage.setItem('maxa_quote_idx', idx);
+  lsSet('maxa_quote_day', day);
+  lsSet('maxa_quote_idx', idx);
   return GSD_QUOTES[idx];
 }
 function nextQuote() {
-  var idx = (parseInt(localStorage.getItem('maxa_quote_idx') || '0') + 1) % GSD_QUOTES.length;
-  localStorage.setItem('maxa_quote_idx', idx);
-  localStorage.setItem('maxa_quote_day', new Date().toDateString());
+  var idx = (parseInt(lsGet('maxa_quote_idx') || '0') + 1) % GSD_QUOTES.length;
+  lsSet('maxa_quote_idx', idx);
+  lsSet('maxa_quote_day', new Date().toDateString());
   render();
 }
 function gsdQuoteBanner() {
@@ -2729,7 +2715,7 @@ document.addEventListener('click', function(e) {
 function switchWorkspace(wsId, elClicked) {
   if(CURRENT_WS === wsId) return;
   CURRENT_WS = wsId;
-  localStorage.setItem('maxa_workspace', wsId);
+  lsSet('maxa_workspace', wsId);
 
   var w = ws();
 
@@ -2840,7 +2826,9 @@ function switchTab(tab, el) {
   render();
 }
 
-function render() {
+function render(force) {
+  // Skip DOM rebuild during background sync unless forced or data changed
+  if(_backgroundSync && !force) return;
   var all  = getFiltered();
   var open = all.filter(function(t){ return !t.done; });
   var over = open.filter(function(t){ return isOver(t.due); });
@@ -3163,7 +3151,7 @@ var EOD_STORE = 'maxa_eod_shown';
 function shouldShowEOD(){
   var hour = new Date().getHours();
   if(hour < 17) return false; // only after 5pm
-  var lastShown = localStorage.getItem(EOD_STORE);
+  var lastShown = lsGet(EOD_STORE);
   var todayStr = today();
   return lastShown !== todayStr;
 }
@@ -3214,7 +3202,7 @@ function openEOD(){
   var rollBtn=document.getElementById('eod-rollover-btn');
   if(rollBtn) rollBtn.style.display=todayOpen.length?'block':'none';
 
-  localStorage.setItem(EOD_STORE, todayStr);
+  lsSet(EOD_STORE, todayStr);
   openOverlay('eod-overlay');
   if(doneToday.length>=3) setTimeout(fireConfetti, 300);
 }
@@ -3240,9 +3228,36 @@ var SYNC_URL_KEY = 'maxa_sync_url';
 var SYNC_LAST_KEY = 'maxa_sync_last';
 var _syncUrl = '';
 var _syncing = false;
+var _backgroundSync = false;
+
+/* ── SAFE LOCALSTORAGE WRAPPER ── */
+/* ── STORAGE HEALTH CHECK ── */
+function checkStorageHealth() {
+  try {
+    var test = '__storage_test__';
+    lsSet(test, '1');
+    if(lsGet(test) !== '1') throw new Error('read-back failed');
+    lsRemove(test);
+    return true;
+  } catch(e) {
+    console.warn('localStorage unavailable:', e);
+    return false;
+  }
+}
+
+function lsSet(key, value) {
+  try { lsSet(key, value); } catch(e) { console.warn('localStorage full or unavailable:', e); }
+}
+function lsRemove(key) {
+  try { lsRemove(key); } catch(e) {}
+}
+function lsGet(key) {
+  try { return lsGet(key); } catch(e) { return null; }
+}
+
 
 function getSyncUrl() {
-  return localStorage.getItem(SYNC_URL_KEY) || '';
+  return lsGet(SYNC_URL_KEY) || '';
 }
 function setSyncDot(state) {
   var dot = document.getElementById('sync-dot');
@@ -3307,7 +3322,7 @@ async function syncPush(showToast) {
       return copy;
     });
     await sheetsFetch('saveMembers', membersForSheet, ws().memberTab);
-    localStorage.setItem(SYNC_LAST_KEY, Date.now().toString());
+    lsSet(SYNC_LAST_KEY, Date.now().toString());
     setSyncDot('ok');
     if(showToast) toast('Pushed to Google Sheets ✓');
   } catch(e) {
@@ -3383,7 +3398,7 @@ async function syncPull(showToast) {
       dataChanged = true;
     }
 
-    localStorage.setItem(SYNC_LAST_KEY, Date.now().toString());
+    lsSet(SYNC_LAST_KEY, Date.now().toString());
     setSyncDot(dataChanged ? 'ok' : 'ok');
     if(dataChanged) render();
     if(showToast) toast(dataChanged ? 'Synced ✓' : 'Already up to date');
@@ -3454,13 +3469,13 @@ async function runSyncDiagnostic() {
     var t3 = await r3.text();
     out.textContent += 'Response: ' + t3.substring(0,100) + '\n';
     if(r3.status === 200) {
-      localStorage.setItem('maxa_post_works','1');
+      lsSet('maxa_post_works', '1');
       out.textContent += '✓ POST works on this device\n';
     }
   } catch(e) {
     out.textContent += 'FAILED: ' + e.message + '\n';
     out.textContent += '⚠ POST blocked — use Push button on desktop only\n';
-    localStorage.setItem('maxa_post_works','0');
+    lsSet('maxa_post_works', '0');
   }
 
   out.textContent += '\nDone.';
@@ -3509,7 +3524,7 @@ function showSyncStatus(msg, type) {
 async function saveSyncUrl() {
   var url = document.getElementById('sync-url-input').value.trim();
   if(!url) { showSyncStatus('Please enter your Script URL', 'error'); return; }
-  localStorage.setItem(SYNC_URL_KEY, url);
+  lsSet(SYNC_URL_KEY, url);
   showSyncStatus('Saved! Syncing now…', 'success');
   var wrap = document.getElementById('sync-actions-wrap');
   if(wrap) wrap.style.display = 'block';
@@ -3522,7 +3537,7 @@ async function saveSyncUrl() {
 }
 
 function clearSyncUrl() {
-  localStorage.removeItem(SYNC_URL_KEY);
+  lsRemove(SYNC_URL_KEY);
   var inp = document.getElementById('sync-url-input');
   if(inp) inp.value = '';
   var wrap = document.getElementById('sync-actions-wrap');
@@ -3559,20 +3574,20 @@ function createBackup(wsId, label) {
   try {
     var w = WORKSPACES[wsId];
     if(!w) return null;
-    var raw = localStorage.getItem(w.storeKey);
+    var raw = lsGet(w.storeKey);
     var taskData = raw ? JSON.parse(raw) : [];
     if(!Array.isArray(taskData) || !taskData.length) return null; // never backup empty
     var backups = getBackups(wsId);
     var newBackup = { ts: Date.now(), label: label||'Auto', count: taskData.length, tasks: taskData };
     backups.unshift(newBackup);
     if(backups.length > MAX_BACKUPS) backups = backups.slice(0, MAX_BACKUPS);
-    localStorage.setItem(backupKey(wsId), JSON.stringify(backups));
+    lsSet(backupKey(wsId), JSON.stringify(backups));
     return newBackup;
   } catch(e) { return null; }
 }
 
 function getBackups(wsId) {
-  try { var r = localStorage.getItem(backupKey(wsId)); return r ? JSON.parse(r) : []; }
+  try { var r = lsGet(backupKey(wsId)); return r ? JSON.parse(r) : []; }
   catch(e) { return []; }
 }
 
@@ -3669,56 +3684,7 @@ toggleDoneInline = function(id, e) {
   });
 };
 
-/* ══════════════════════════════════════════
-   PULL TO REFRESH
-══════════════════════════════════════════ */
-(function(){
-  var content = document.getElementById('content');
-  var indicator = document.getElementById('ptr-indicator');
-  var arrowEl = document.getElementById('ptr-arrow');
-  var labelEl = document.getElementById('ptr-label');
-  if(!content||!indicator) return;
-  var startY=0, pulling=false, triggered=false;
-  var THRESHOLD = 65;
 
-  content.addEventListener('touchstart',function(e){
-    if(content.scrollTop>0) return;
-    startY=e.touches[0].clientY; pulling=true; triggered=false;
-  },{passive:true});
-
-  content.addEventListener('touchmove',function(e){
-    if(!pulling) return;
-    var dy=e.touches[0].clientY-startY;
-    if(dy<=0){indicator.classList.remove('visible','ready');return;}
-    indicator.style.height=Math.min(dy*0.55,40)+'px';
-    indicator.classList.add('visible');
-    triggered=dy>=THRESHOLD;
-    indicator.classList.toggle('ready',triggered);
-    if(arrowEl) arrowEl.style.transform=triggered?'rotate(180deg)':'rotate(0deg)';
-    if(labelEl) labelEl.textContent=triggered?'Release to sync':'Pull to refresh';
-  },{passive:true});
-
-  content.addEventListener('touchend',function(){
-    if(!pulling) return;
-    pulling=false;
-    if(triggered){
-      if(arrowEl) arrowEl.style.display='none';
-      if(labelEl) labelEl.innerHTML='<span class="ptr-spinner"></span> Syncing…';
-      indicator.style.height='40px';
-      if(navigator.vibrate) navigator.vibrate(20);
-      syncPull(true).finally(function(){
-        indicator.classList.remove('visible','ready');
-        indicator.style.height='0';
-        if(arrowEl){arrowEl.style.display='';arrowEl.style.transform='';}
-        if(labelEl) labelEl.textContent='Pull to refresh';
-      });
-    } else {
-      indicator.classList.remove('visible','ready');
-      indicator.style.height='0';
-    }
-    triggered=false;
-  },{passive:true});
-})();
 
 /* ══════════════════════════════════════════
    MORNING BRIEFING CARD
@@ -3726,10 +3692,10 @@ toggleDoneInline = function(id, e) {
 var MORNING_KEY = 'maxa_morning_v1';
 function shouldShowMorning(){
   var h=new Date().getHours();
-  return h<9 && localStorage.getItem(MORNING_KEY)!==today();
+  return h<9 && lsGet(MORNING_KEY)!==today();
 }
 function dismissMorning(){
-  localStorage.setItem(MORNING_KEY,today());
+  lsSet(MORNING_KEY, today());
   render();
 }
 function morningBriefingHTML(){
@@ -3761,8 +3727,8 @@ function morningBriefingHTML(){
    ACCOUNTABILITY TRAIL
 ══════════════════════════════════════════ */
 var TRAIL_KEY = 'maxa_trail_v1';
-function getTrail(){ try{ var r=localStorage.getItem(TRAIL_KEY); return r?JSON.parse(r):{}; }catch(e){ return {}; } }
-function saveTrail(t){ try{ localStorage.setItem(TRAIL_KEY,JSON.stringify(t)); }catch(e){} }
+function getTrail(){ try{ var r=lsGet(TRAIL_KEY); return r?JSON.parse(r):{}; }catch(e){ return {}; } }
+function saveTrail(t){ try{ lsSet(TRAIL_KEY, JSON.stringify(t)); }catch(e){} }
 function addTrailEvent(taskId, taskText, event){
   var trail=getTrail();
   if(!trail[taskId]) trail[taskId]=[];
@@ -3800,8 +3766,8 @@ toggleDone = function(id){
 ══════════════════════════════════════════ */
 var MILESTONE_KEY='maxa_milestones_v1';
 var MILESTONES=[10,25,50,100,250,500];
-function getMilestonesHit(){ try{ var r=localStorage.getItem(MILESTONE_KEY); return r?JSON.parse(r):[]; }catch(e){ return []; } }
-function markMilestoneHit(m){ var hit=getMilestonesHit(); if(hit.indexOf(m)<0){ hit.push(m); localStorage.setItem(MILESTONE_KEY,JSON.stringify(hit)); } }
+function getMilestonesHit(){ try{ var r=lsGet(MILESTONE_KEY); return r?JSON.parse(r):[]; }catch(e){ return []; } }
+function markMilestoneHit(m){ var hit=getMilestonesHit(); if(hit.indexOf(m)<0){ hit.push(m); lsSet(MILESTONE_KEY, JSON.stringify(hit)); } }
 function checkMilestone(){
   var ledger=getLedger();
   var rec=ledger['Me']||{completions:0};
@@ -3837,7 +3803,7 @@ recordCompletion=function(task){
 ══════════════════════════════════════════ */
 var THEME_KEY='maxa_theme_v1';
 function initTheme(){
-  var saved=localStorage.getItem(THEME_KEY);
+  var saved=lsGet(THEME_KEY);
   var prefersDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
   var dark=saved==='dark'||(!saved&&prefersDark);
   if(dark) document.body.classList.add('dark');
@@ -3846,7 +3812,7 @@ function initTheme(){
 }
 function toggleTheme(){
   var dark=document.body.classList.toggle('dark');
-  localStorage.setItem(THEME_KEY,dark?'dark':'light');
+  lsSet(THEME_KEY, dark?'dark':'light');
   var btn=document.getElementById('theme-toggle');
   if(btn) btn.textContent=dark?'\ud83c\udf19':'\u2600';
 }
@@ -3866,9 +3832,9 @@ setInterval(checkEOD, 5*60*1000);
   setSyncDot(url ? 'ok' : 'off');
   if(url) {
     // Pull latest from Sheets — but only AFTER backup has run (800ms delay)
-    setTimeout(function(){ syncPull(false); }, 800);
+    setTimeout(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 800);
     // Auto-sync every 2 minutes while app is open
-    setInterval(function(){ syncPull(false); }, 2*60*1000);
+    setInterval(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 2*60*1000);
   }
 })();
 </script>
