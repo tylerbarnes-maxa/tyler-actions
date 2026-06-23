@@ -3376,8 +3376,9 @@ async function syncPull(showToast) {
     if(dataChanged) render();
     if(showToast) toast(dataChanged ? 'Synced ✓' : 'Already up to date');
   } catch(e) {
-    if(showToast) { setSyncDot('error'); toast('Sync failed — check connection'); }
+    if(showToast) { setSyncDot('error'); toast('Sync failed: ' + e.message.substring(0,60)); }
     else setSyncDot('error');
+    console.error('syncPull error:', e);
   }
   _syncing = false;
 }
