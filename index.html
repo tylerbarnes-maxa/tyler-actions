@@ -1028,7 +1028,11 @@ input[type=range]{accent-color:var(--maxa-yellow);width:100%}
       </div>
       <button class="btn-danger" onclick="clearSyncUrl()" style="width:100%;margin-top:8px;padding:10px;font-size:13px">Disconnect Google Sheets</button>
     </div>
-    <!-- BACKUP SECTION -->
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px">Diagnostics</div>
+      <button class="btn-cancel" onclick="runSyncDiagnostic()" style="width:100%;font-size:12px">🔍 Run diagnostic test</button>
+      <div id="diag-output" style="margin-top:8px;font-size:11px;font-family:monospace;color:var(--text-secondary);white-space:pre-wrap;word-break:break-all;background:var(--bg);padding:8px;border-radius:var(--radius-sm);display:none"></div>
+    </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
       <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px">Local backup</div>
       <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5" id="backup-status-text">The app saves an automatic backup every time it opens.</div>
@@ -3257,25 +3261,32 @@ async function sheetsFetch(action, data, tab) {
   var url = getSyncUrl();
   if(!url) return null;
   try {
-    // Send as JSON body to avoid URLSearchParams encoding spaces as +
-    var payload = { action: action };
-    if(tab) payload.tab = tab;
-    if(data !== undefined) payload.data = data; // send as object, not stringified
-
-    var res = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
-    });
+    var res;
+    if(data !== undefined) {
+      // WRITE — use POST with JSON body
+      var payload = { action: action };
+      if(tab) payload.tab = tab;
+      payload.data = data;
+      res = await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+    } else {
+      // READ — use GET to avoid CORS preflight on mobile
+      var params = new URLSearchParams({action: action});
+      if(tab) params.append('tab', tab);
+      res = await fetch(url + '?' + params.toString(), {method: 'GET'});
+    }
     if(!res.ok) throw new Error('HTTP ' + res.status);
     var text = await res.text();
     var json;
     try { json = JSON.parse(text); }
-    catch(pe) { throw new Error('Bad JSON: ' + text.substring(0,100)); }
+    catch(pe) { throw new Error('Bad response: ' + text.substring(0,80)); }
     if(json.error) throw new Error(json.error);
     return json;
   } catch(e) {
-    console.error('Sheets sync error [' + action + ']:', e.message);
+    console.error('Sheets error [' + action + ']:', e.message);
     throw e;
   }
 }
@@ -3404,6 +3415,50 @@ saveMembers = function() {
 };
 
 // Sync settings UI
+async function runSyncDiagnostic() {
+  var out = document.getElementById('diag-output');
+  if(!out) return;
+  out.style.display = 'block';
+  out.textContent = 'Running...\n';
+
+  var url = getSyncUrl();
+  if(!url) { out.textContent = 'ERROR: No sync URL saved'; return; }
+  out.textContent += 'URL: ' + url.substring(0,60) + '...\n';
+
+  // Test 1: ping via GET
+  try {
+    out.textContent += '\n[1] GET ping...\n';
+    var r1 = await fetch(url + '?action=ping', {method:'GET'});
+    out.textContent += 'Status: ' + r1.status + '\n';
+    var t1 = await r1.text();
+    out.textContent += 'Response: ' + t1.substring(0,100) + '\n';
+  } catch(e) { out.textContent += 'FAILED: ' + e.message + '\n'; }
+
+  // Test 2: getTasks via GET
+  try {
+    out.textContent += '\n[2] GET tasks...\n';
+    var r2 = await fetch(url + '?action=getTasks&tab=tasks', {method:'GET'});
+    out.textContent += 'Status: ' + r2.status + '\n';
+    var t2 = await r2.text();
+    out.textContent += 'Response: ' + t2.substring(0,150) + '\n';
+  } catch(e) { out.textContent += 'FAILED: ' + e.message + '\n'; }
+
+  // Test 3: POST ping
+  try {
+    out.textContent += '\n[3] POST ping...\n';
+    var r3 = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'ping'})
+    });
+    out.textContent += 'Status: ' + r3.status + '\n';
+    var t3 = await r3.text();
+    out.textContent += 'Response: ' + t3.substring(0,100) + '\n';
+  } catch(e) { out.textContent += 'FAILED: ' + e.message + '\n'; }
+
+  out.textContent += '\nDone.';
+}
+
 function openSyncSettings() {
   var url = getSyncUrl();
   var inp = document.getElementById('sync-url-input');
