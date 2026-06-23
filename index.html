@@ -3228,6 +3228,8 @@ function checkEOD(){ if(shouldShowEOD()) openEOD(); }
 ══════════════════════════════════════════ */
 var SUPA_URL = 'https://hfciytpbjtijlzgtznqv.supabase.co';
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmY2l5dHBianRpamx6Z3R6bnF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjIxMzUsImV4cCI6MjA5Nzc5ODEzNX0.WWmwBKe2yGaLUwsPMK8KRZ7nJBjT_Q74PRuHL7rORH0';
+var SYNC_LAST_KEY = 'maxa_sync_last';
+
 var DELETED_KEY = 'maxa_deleted_v1';
 function getDeletedIds() {
   try { var r=lsGet(DELETED_KEY); return r?JSON.parse(r):{}; } catch(e){ return {}; }
