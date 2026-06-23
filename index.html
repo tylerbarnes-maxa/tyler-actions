@@ -3265,7 +3265,7 @@ function setSyncDot(state) {
 
 async function supaFetch(method, table, body, deleteId) {
   var url = SUPA_URL + '/rest/v1/' + table;
-  if(method === 'GET') url += '?select=*';
+  if(method === 'GET') url += '?select=*&limit=10000';
   if(method === 'DELETE' && deleteId) url += '?id=eq.' + encodeURIComponent(deleteId);
   var opts = {
     method: method,
@@ -3805,8 +3805,20 @@ _lastTodayCount = tasks.filter(function(t){ return !t.done && isToday(t.due); })
 setTimeout(checkEOD, 1500);
 // Recheck every 5 minutes
 setInterval(checkEOD, 5*60*1000);
-// Init Supabase sync — always connected
-setSyncDot('ok');
+// Keep-alive ping — fires once per day to prevent Supabase free tier pausing after 7 days inactivity
+(function keepAlive() {
+  var KEEPALIVE_KEY = 'maxa_keepalive';
+  var last = parseInt(lsGet(KEEPALIVE_KEY) || '0');
+  var now  = Date.now();
+  var ONE_DAY = 24 * 60 * 60 * 1000;
+  if(now - last > ONE_DAY) {
+    fetch(SUPA_URL + '/rest/v1/tasks?select=id&limit=1', {
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+    }).then(function() {
+      lsSet(KEEPALIVE_KEY, now.toString());
+    }).catch(function(){});
+  }
+})();
 setTimeout(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 1200);
 setInterval(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 2*60*1000);
 </script>
