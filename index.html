@@ -3263,17 +3263,18 @@ async function sheetsFetch(action, data, tab) {
   try {
     var res;
     if(data !== undefined) {
-      // WRITE — use POST with JSON body
+      // WRITE — POST with text/plain to avoid CORS preflight on mobile
+      // (browsers only send OPTIONS preflight for application/json, not text/plain)
       var payload = { action: action };
       if(tab) payload.tab = tab;
       payload.data = data;
       res = await fetch(url, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'text/plain'},
         body: JSON.stringify(payload)
       });
     } else {
-      // READ — use GET to avoid CORS preflight on mobile
+      // READ — GET, no CORS issues
       var params = new URLSearchParams({action: action});
       if(tab) params.append('tab', tab);
       res = await fetch(url + '?' + params.toString(), {method: 'GET'});
@@ -3396,13 +3397,11 @@ async function syncPull(showToast) {
 
 async function manualSync() {
   if(!getSyncUrl()) { openSyncSettings(); return; }
-  // Pull first (get latest from sheet), then push our local state
   await syncPull(false);
   await syncPush(true);
 }
 
 // Hook saveTasks/saveMembers to push to Sheets on user actions
-// but NOT during a sync operation (prevents flash + infinite loops)
 var _origSaveTasks = saveTasks;
 saveTasks = function() {
   _origSaveTasks();
@@ -3454,7 +3453,15 @@ async function runSyncDiagnostic() {
     out.textContent += 'Status: ' + r3.status + '\n';
     var t3 = await r3.text();
     out.textContent += 'Response: ' + t3.substring(0,100) + '\n';
-  } catch(e) { out.textContent += 'FAILED: ' + e.message + '\n'; }
+    if(r3.status === 200) {
+      localStorage.setItem('maxa_post_works','1');
+      out.textContent += '✓ POST works on this device\n';
+    }
+  } catch(e) {
+    out.textContent += 'FAILED: ' + e.message + '\n';
+    out.textContent += '⚠ POST blocked — use Push button on desktop only\n';
+    localStorage.setItem('maxa_post_works','0');
+  }
 
   out.textContent += '\nDone.';
 }
