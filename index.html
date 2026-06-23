@@ -3308,30 +3308,33 @@ async function syncPull(showToast) {
 
     if(Array.isArray(taskRows) && taskRows.length > 0) {
       var sheetTasks = taskRows.map(function(r) { return r.data; }).filter(Boolean);
-      // Timestamp-based merge
-      var localMap = {};
-      tasks.forEach(function(t) { localMap[t.id] = t; });
-      var sheetMap = {};
-      sheetTasks.forEach(function(t) { sheetMap[t.id] = t; });
-      var allIds = {};
-      Object.keys(localMap).forEach(function(id) { allIds[id] = true; });
-      Object.keys(sheetMap).forEach(function(id) { allIds[id] = true; });
-      var merged = Object.keys(allIds).map(function(id) {
-        var local  = localMap[id];
-        var remote = sheetMap[id];
-        if(!local)  return remote;
-        if(!remote) return local;
-        var lMod = local.modified  || local.created  || 0;
-        var rMod = remote.modified || remote.created || 0;
-        return rMod >= lMod ? remote : local;
-      });
-      var mergedStr = JSON.stringify(merged.map(function(t) { return t.id+':'+(t.modified||t.created||0)+':'+t.done; }).sort());
-      var localStr  = JSON.stringify(tasks.map(function(t) { return t.id+':'+(t.modified||t.created||0)+':'+t.done; }).sort());
-      if(mergedStr !== localStr) {
-        tasks = merged;
-        _origSaveTasks();
-        dataChanged = true;
+      if(sheetTasks.length > 0) {
+        // Timestamp-based merge — never replace local with empty
+        var localMap = {};
+        tasks.forEach(function(t) { localMap[t.id] = t; });
+        var sheetMap = {};
+        sheetTasks.forEach(function(t) { sheetMap[t.id] = t; });
+        var allIds = {};
+        Object.keys(localMap).forEach(function(id) { allIds[id] = true; });
+        Object.keys(sheetMap).forEach(function(id) { allIds[id] = true; });
+        var merged = Object.keys(allIds).map(function(id) {
+          var local  = localMap[id];
+          var remote = sheetMap[id];
+          if(!local)  return remote;
+          if(!remote) return local;
+          var lMod = local.modified  || local.created  || 0;
+          var rMod = remote.modified || remote.created || 0;
+          return rMod >= lMod ? remote : local;
+        });
+        var mergedStr = JSON.stringify(merged.map(function(t) { return t.id+':'+(t.modified||t.created||0)+':'+t.done; }).sort());
+        var localStr  = JSON.stringify(tasks.map(function(t) { return t.id+':'+(t.modified||t.created||0)+':'+t.done; }).sort());
+        if(mergedStr !== localStr) {
+          tasks = merged;
+          _origSaveTasks();
+          dataChanged = true;
+        }
       }
+      // If Supabase returns empty, keep local tasks untouched
     }
 
     if(Array.isArray(memberRows) && memberRows.length > 0) {
