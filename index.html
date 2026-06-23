@@ -3304,12 +3304,23 @@ async function syncPull(showToast) {
     var memberRows = await supaFetch('GET', 'members');
     if(CURRENT_WS !== wsAtStart) { _syncing = false; return; }
 
+    console.log('Pull: taskRows='+taskRows.length+' memberRows='+memberRows.length);
+
     var dataChanged = false;
 
     if(Array.isArray(taskRows) && taskRows.length > 0) {
-      var sheetTasks = taskRows.map(function(r) { return r.data; }).filter(Boolean);
+      // Parse data field if it came back as a string
+      var sheetTasks = taskRows.map(function(r) {
+        if(!r.data) return null;
+        if(typeof r.data === 'string') {
+          try { return JSON.parse(r.data); } catch(e) { return null; }
+        }
+        return r.data;
+      }).filter(function(t){ return t && t.id; });
+
+      console.log('Pull: sheetTasks after parse='+sheetTasks.length);
+
       if(sheetTasks.length > 0) {
-        // Timestamp-based merge — never replace local with empty
         var localMap = {};
         tasks.forEach(function(t) { localMap[t.id] = t; });
         var sheetMap = {};
@@ -3332,14 +3343,21 @@ async function syncPull(showToast) {
           tasks = merged;
           _origSaveTasks();
           dataChanged = true;
+          console.log('Pull: merged '+merged.length+' tasks');
         }
       }
-      // If Supabase returns empty, keep local tasks untouched
     }
 
     if(Array.isArray(memberRows) && memberRows.length > 0) {
-      var sheetMembers = memberRows.map(function(r) { return r.data; }).filter(Boolean);
-      if(JSON.stringify(sheetMembers) !== JSON.stringify(members)) {
+      var sheetMembers = memberRows.map(function(r) {
+        if(!r.data) return null;
+        if(typeof r.data === 'string') {
+          try { return JSON.parse(r.data); } catch(e) { return null; }
+        }
+        return r.data;
+      }).filter(function(m){ return m && m.id; });
+
+      if(sheetMembers.length > 0 && JSON.stringify(sheetMembers) !== JSON.stringify(members)) {
         var defaults = DEFAULT_MEMBERS();
         sheetMembers.forEach(function(m) {
           if(!m.photo) {
@@ -3360,8 +3378,8 @@ async function syncPull(showToast) {
     if(showToast) toast(dataChanged ? 'Synced ✓' : 'Already up to date');
   } catch(e) {
     setSyncDot('error');
-    if(showToast) toast('Sync failed: ' + e.message.substring(0,50));
-    console.error('syncPull error:', e);
+    if(showToast) toast('Sync failed: ' + e.message.substring(0,80));
+    console.error('syncPull error:', e.message, e.stack);
   }
   _syncing = false;
 }
