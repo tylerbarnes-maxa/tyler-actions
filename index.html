@@ -997,31 +997,19 @@ input[type=range]{accent-color:var(--maxa-yellow);width:100%}
 <div class="overlay" id="sync-overlay" onclick="overlayClose(event,'sync-overlay')">
   <div class="sheet">
     <div class="handle"></div>
-    <div class="sheet-title">Google Sheets sync</div>
-    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6">
-      Paste your Google Apps Script URL below to sync your tasks across all devices in real time.
+    <div class="sheet-title">Sync</div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg);border-radius:var(--radius-md);margin-bottom:16px">
+      <div style="width:10px;height:10px;border-radius:50%;background:#16A34A;flex-shrink:0"></div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary)">Connected via Supabase</div>
+        <div style="font-size:11px;color:var(--text-muted)">Syncs across all your devices automatically</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn-cancel" onclick="syncPull(true)" style="flex:1">↓ Pull latest</button>
+      <button class="btn-save" onclick="syncPush(true)" style="flex:1">↑ Push now</button>
     </div>
     <div id="sync-status-bar" style="display:none;font-size:13px;padding:10px 12px;border-radius:var(--radius-md);margin-bottom:12px"></div>
-    <label class="fld-label">Apps Script Web App URL</label>
-    <input type="text" id="sync-url-input" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" autocorrect="off" spellcheck="false">
-    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Get this from Extensions → Apps Script → Deploy → Manage deployments in your Google Sheet.</div>
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn-cancel" id="sync-test-btn" onclick="testSyncConnection()" style="flex:1">Test connection</button>
-      <button class="btn-save" onclick="saveSyncUrl()" style="flex:1">Save & sync now</button>
-    </div>
-    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)" id="sync-actions-wrap" style="display:none">
-      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px">Manual controls</div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-cancel" onclick="syncPull(true)" style="flex:1;font-size:12px">↓ Pull from Sheets</button>
-        <button class="btn-cancel" onclick="syncPush(true)" style="flex:1;font-size:12px">↑ Push to Sheets</button>
-      </div>
-      <button class="btn-danger" onclick="clearSyncUrl()" style="width:100%;margin-top:8px;padding:10px;font-size:13px">Disconnect Google Sheets</button>
-    </div>
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px">Diagnostics</div>
-      <button class="btn-cancel" onclick="runSyncDiagnostic()" style="width:100%;font-size:12px">🔍 Run diagnostic test</button>
-      <div id="diag-output" style="margin-top:8px;font-size:11px;font-family:monospace;color:var(--text-secondary);white-space:pre-wrap;word-break:break-all;background:var(--bg);padding:8px;border-radius:var(--radius-sm);display:none"></div>
-    </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
       <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px">Local backup</div>
       <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5" id="backup-status-text">The app saves an automatic backup every time it opens.</div>
@@ -3222,159 +3210,123 @@ function rolloverToTomorrow(){
 function checkEOD(){ if(shouldShowEOD()) openEOD(); }
 
 /* ══════════════════════════════════════════
-   GOOGLE SHEETS SYNC
+   SUPABASE SYNC
+   Pure REST — GET and POST both work on all
+   devices. No CORS issues, no URL limits.
 ══════════════════════════════════════════ */
-var SYNC_URL_KEY = 'maxa_sync_url';
+var SUPA_URL = 'https://hfciytpbjtijlzgtznqv.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmY2l5dHBianRpamx6Z3R6bnF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMjIxMzUsImV4cCI6MjA5Nzc5ODEzNX0.WWmwBKe2yGaLUwsPMK8KRZ7nJBjT_Q74PRuHL7rORH0';
 var SYNC_LAST_KEY = 'maxa_sync_last';
-var _syncUrl = '';
 var _syncing = false;
 var _backgroundSync = false;
 
-/* ── SAFE LOCALSTORAGE WRAPPER ── */
-/* ── STORAGE HEALTH CHECK ── */
-function checkStorageHealth() {
-  try {
-    var test = '__storage_test__';
-    lsSet(test, '1');
-    if(lsGet(test) !== '1') throw new Error('read-back failed');
-    lsRemove(test);
-    return true;
-  } catch(e) {
-    console.warn('localStorage unavailable:', e);
-    return false;
-  }
-}
-
-function lsSet(key, value) {
-  try { lsSet(key, value); } catch(e) { console.warn('localStorage full or unavailable:', e); }
-}
-function lsRemove(key) {
-  try { lsRemove(key); } catch(e) {}
-}
-function lsGet(key) {
-  try { return lsGet(key); } catch(e) { return null; }
-}
-
-
 function getSyncUrl() {
-  return lsGet(SYNC_URL_KEY) || '';
+  // Always connected via Supabase — return sentinel
+  return SUPA_URL;
 }
+
 function setSyncDot(state) {
   var dot = document.getElementById('sync-dot');
   if(!dot) return;
   var colors = {off:'#555', syncing:'#FFCD00', ok:'#16A34A', error:'#DC2626'};
-  // Use transition so the dot change is smooth and doesn't cause layout recalc
   dot.style.transition = 'background 0.4s';
   dot.style.background = colors[state] || '#555';
   var btn = document.getElementById('sync-btn');
-  if(btn) btn.title = state==='ok'?'Synced':state==='error'?'Sync error — tap to retry':state==='syncing'?'Syncing…':'Tap to sync';
+  if(btn) btn.title = state==='ok'?'Synced':state==='error'?'Sync error — tap to retry':state==='syncing'?'Syncing…':'Sync';
   var lbl = document.getElementById('sb-sync-label');
-  if(lbl) lbl.textContent = state==='ok'?'Synced ✓':state==='error'?'Sync error':'Sync setup';
+  if(lbl) lbl.textContent = state==='ok'?'Synced ✓':state==='error'?'Sync error':'Sync';
 }
 
-async function sheetsFetch(action, data, tab) {
-  var url = getSyncUrl();
-  if(!url) return null;
-  try {
-    var res;
-    if(data !== undefined) {
-      // WRITE — POST with text/plain to avoid CORS preflight on mobile
-      // (browsers only send OPTIONS preflight for application/json, not text/plain)
-      var payload = { action: action };
-      if(tab) payload.tab = tab;
-      payload.data = data;
-      res = await fetch(url, {
-        method: 'POST',
-        headers: {'Content-Type': 'text/plain'},
-        body: JSON.stringify(payload)
-      });
-    } else {
-      // READ — GET, no CORS issues
-      var params = new URLSearchParams({action: action});
-      if(tab) params.append('tab', tab);
-      res = await fetch(url + '?' + params.toString(), {method: 'GET'});
+async function supaFetch(method, table, body) {
+  var url = SUPA_URL + '/rest/v1/' + table;
+  if(method === 'GET') url += '?select=*';
+  var opts = {
+    method: method,
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'resolution=merge-duplicates,return=minimal' : ''
     }
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    var text = await res.text();
-    var json;
-    try { json = JSON.parse(text); }
-    catch(pe) { throw new Error('Bad response: ' + text.substring(0,80)); }
-    if(json.error) throw new Error(json.error);
-    return json;
-  } catch(e) {
-    console.error('Sheets error [' + action + ']:', e.message);
-    throw e;
+  };
+  if(body) opts.body = JSON.stringify(body);
+  var res = await fetch(url, opts);
+  if(!res.ok) {
+    var errText = await res.text();
+    throw new Error('Supabase ' + method + ' ' + table + ': ' + res.status + ' ' + errText.substring(0,100));
   }
+  if(method === 'GET') return await res.json();
+  return true;
 }
 
 async function syncPush(showToast) {
-  if(!getSyncUrl() || _syncing) return;
-  var wsAtStart = CURRENT_WS;
+  if(_syncing) return;
   _syncing = true;
-  setSyncDot('syncing');
+  if(showToast) setSyncDot('syncing');
   try {
-    if(CURRENT_WS !== wsAtStart) { _syncing = false; return; }
-    await sheetsFetch('saveTasks', tasks, ws().sheetTab);
-    // Strip photo data before pushing to sheet — photos live in the app only
-    var membersForSheet = members.map(function(m) {
-      var copy = Object.assign({}, m);
-      delete copy.photo;
-      return copy;
+    // Upsert all tasks as {id, data, updated_at} rows
+    var taskRows = tasks.map(function(t) {
+      return {id: t.id, data: t, updated_at: new Date().toISOString()};
     });
-    await sheetsFetch('saveMembers', membersForSheet, ws().memberTab);
+    if(taskRows.length > 0) {
+      // Supabase upsert in batches of 50 to stay well within limits
+      for(var i=0; i<taskRows.length; i+=50) {
+        await supaFetch('POST', 'tasks', taskRows.slice(i, i+50));
+      }
+    }
+    // Upsert members
+    var memberRows = members.map(function(m) {
+      var copy = {};
+      for(var k in m) { if(k !== 'photo') copy[k] = m[k]; }
+      return {id: m.id, data: copy, updated_at: new Date().toISOString()};
+    });
+    if(memberRows.length > 0) {
+      await supaFetch('POST', 'members', memberRows);
+    }
     lsSet(SYNC_LAST_KEY, Date.now().toString());
     setSyncDot('ok');
-    if(showToast) toast('Pushed to Google Sheets ✓');
+    if(showToast) toast('Pushed to Supabase ✓');
   } catch(e) {
     setSyncDot('error');
-    if(showToast) toast('Sync failed — check connection');
+    if(showToast) toast('Sync failed: ' + e.message.substring(0,50));
+    console.error('syncPush error:', e);
   }
   _syncing = false;
 }
 
 async function syncPull(showToast) {
-  if(!getSyncUrl() || _syncing) return;
+  if(_syncing) return;
   var wsAtStart = CURRENT_WS;
   _syncing = true;
   if(showToast) setSyncDot('syncing');
   try {
-    var tResult = await sheetsFetch('getTasks', null, ws().sheetTab);
-    var mResult = await sheetsFetch('getMembers', null, ws().memberTab);
+    var taskRows   = await supaFetch('GET', 'tasks');
+    var memberRows = await supaFetch('GET', 'members');
     if(CURRENT_WS !== wsAtStart) { _syncing = false; return; }
 
-    var sheetTasks = (tResult && (tResult.tasks || tResult.members))
-      ? (tResult.tasks || tResult.members) : [];
     var dataChanged = false;
 
-    if(sheetTasks.length > 0) {
-      // Timestamp-based merge: newest version of each task wins
-      // Build lookup of local tasks by ID
+    if(Array.isArray(taskRows) && taskRows.length > 0) {
+      var sheetTasks = taskRows.map(function(r) { return r.data; }).filter(Boolean);
+      // Timestamp-based merge
       var localMap = {};
-      tasks.forEach(function(t){ localMap[t.id] = t; });
-
+      tasks.forEach(function(t) { localMap[t.id] = t; });
       var sheetMap = {};
-      sheetTasks.forEach(function(t){ sheetMap[t.id] = t; });
-
-      // Collect all unique IDs from both sides
+      sheetTasks.forEach(function(t) { sheetMap[t.id] = t; });
       var allIds = {};
-      Object.keys(localMap).forEach(function(id){ allIds[id] = true; });
-      Object.keys(sheetMap).forEach(function(id){ allIds[id] = true; });
-
+      Object.keys(localMap).forEach(function(id) { allIds[id] = true; });
+      Object.keys(sheetMap).forEach(function(id) { allIds[id] = true; });
       var merged = Object.keys(allIds).map(function(id) {
         var local  = localMap[id];
         var remote = sheetMap[id];
-        if(!local)  return remote; // only on sheet → take it
-        if(!remote) return local;  // only local → keep it
-        // Both exist: newest modified timestamp wins
-        var localMod  = local.modified  || local.created  || 0;
-        var remoteMod = remote.modified || remote.created || 0;
-        return remoteMod >= localMod ? remote : local;
+        if(!local)  return remote;
+        if(!remote) return local;
+        var lMod = local.modified  || local.created  || 0;
+        var rMod = remote.modified || remote.created || 0;
+        return rMod >= lMod ? remote : local;
       });
-
-      // Only update if merged is actually different from current tasks
-      var mergedStr = JSON.stringify(merged.map(function(t){ return t.id+':'+(t.modified||t.created||0)+':'+t.done; }).sort());
-      var localStr  = JSON.stringify(tasks.map(function(t){ return t.id+':'+(t.modified||t.created||0)+':'+t.done; }).sort());
-
+      var mergedStr = JSON.stringify(merged.map(function(t) { return t.id+':'+(t.modified||t.created||0)+':'+t.done; }).sort());
+      var localStr  = JSON.stringify(tasks.map(function(t) { return t.id+':'+(t.modified||t.created||0)+':'+t.done; }).sort());
       if(mergedStr !== localStr) {
         tasks = merged;
         _origSaveTasks();
@@ -3382,50 +3334,50 @@ async function syncPull(showToast) {
       }
     }
 
-    var sheetMembers = (mResult && (mResult.members || mResult.tasks))
-      ? (mResult.members || mResult.tasks) : [];
-    if(sheetMembers.length > 0 && JSON.stringify(sheetMembers) !== JSON.stringify(members)) {
-      var defaults = DEFAULT_MEMBERS();
-      sheetMembers.forEach(function(m) {
-        if(!m.photo) {
-          var def = defaults.find(function(d){ return d.id===m.id||d.name===m.name; });
-          if(def && def.photo) m.photo = def.photo;
-        }
-      });
-      members = sheetMembers;
-      _origSaveMembers();
-      buildAssignButtons();
-      dataChanged = true;
+    if(Array.isArray(memberRows) && memberRows.length > 0) {
+      var sheetMembers = memberRows.map(function(r) { return r.data; }).filter(Boolean);
+      if(JSON.stringify(sheetMembers) !== JSON.stringify(members)) {
+        var defaults = DEFAULT_MEMBERS();
+        sheetMembers.forEach(function(m) {
+          if(!m.photo) {
+            var def = defaults.find(function(d) { return d.id===m.id||d.name===m.name; });
+            if(def && def.photo) m.photo = def.photo;
+          }
+        });
+        members = sheetMembers;
+        _origSaveMembers();
+        buildAssignButtons();
+        dataChanged = true;
+      }
     }
 
     lsSet(SYNC_LAST_KEY, Date.now().toString());
-    setSyncDot(dataChanged ? 'ok' : 'ok');
-    if(dataChanged) render();
+    setSyncDot('ok');
+    if(dataChanged) render(true);
     if(showToast) toast(dataChanged ? 'Synced ✓' : 'Already up to date');
   } catch(e) {
-    if(showToast) { setSyncDot('error'); toast('Sync failed: ' + e.message.substring(0,60)); }
-    else setSyncDot('error');
+    setSyncDot('error');
+    if(showToast) toast('Sync failed: ' + e.message.substring(0,50));
     console.error('syncPull error:', e);
   }
   _syncing = false;
 }
 
 async function manualSync() {
-  if(!getSyncUrl()) { openSyncSettings(); return; }
   await syncPull(false);
   await syncPush(true);
 }
 
-// Hook saveTasks/saveMembers to push to Sheets on user actions
+// Hook saveTasks/saveMembers to push automatically
 var _origSaveTasks = saveTasks;
 saveTasks = function() {
   _origSaveTasks();
-  if(getSyncUrl() && !_syncing) syncPush(false);
+  if(!_syncing) syncPush(false);
 };
 var _origSaveMembers = saveMembers;
 saveMembers = function() {
   _origSaveMembers();
-  if(getSyncUrl() && !_syncing) syncPush(false);
+  if(!_syncing) syncPush(false);
 };
 
 // Sync settings UI
@@ -3481,38 +3433,6 @@ async function runSyncDiagnostic() {
   out.textContent += '\nDone.';
 }
 
-function openSyncSettings() {
-  var url = getSyncUrl();
-  var inp = document.getElementById('sync-url-input');
-  if(inp) inp.value = url;
-  var wrap = document.getElementById('sync-actions-wrap');
-  if(wrap) wrap.style.display = url ? 'block' : 'none';
-  var bar = document.getElementById('sync-status-bar');
-  if(bar) bar.style.display = 'none';
-  updateBackupStatusText();
-  openOverlay('sync-overlay');
-}
-
-async function testSyncConnection() {
-  var url = document.getElementById('sync-url-input').value.trim();
-  if(!url) { showSyncStatus('Please enter your Script URL first', 'error'); return; }
-  var btn = document.getElementById('sync-test-btn');
-  if(btn) btn.textContent = 'Testing…';
-  try {
-    var params = new URLSearchParams({action:'ping'});
-    var res = await fetch(url + '?' + params.toString());
-    var json = await res.json();
-    if(json.ok) {
-      showSyncStatus('✓ Connection successful! Ready to sync.', 'success');
-    } else {
-      showSyncStatus('Connected but got unexpected response. Check your script.', 'warning');
-    }
-  } catch(e) {
-    showSyncStatus('Connection failed: ' + e.message + '. Make sure you deployed as "Anyone" access.', 'error');
-  }
-  if(btn) btn.textContent = 'Test connection';
-}
-
 function showSyncStatus(msg, type) {
   var bar = document.getElementById('sync-status-bar');
   if(!bar) return;
@@ -3520,44 +3440,6 @@ function showSyncStatus(msg, type) {
   bar.style = (colors[type]||colors.warning) + ';display:block;font-size:13px;padding:10px 12px;border-radius:var(--radius-md);margin-bottom:12px;line-height:1.5';
   bar.textContent = msg;
 }
-
-async function saveSyncUrl() {
-  var url = document.getElementById('sync-url-input').value.trim();
-  if(!url) { showSyncStatus('Please enter your Script URL', 'error'); return; }
-  lsSet(SYNC_URL_KEY, url);
-  showSyncStatus('Saved! Syncing now…', 'success');
-  var wrap = document.getElementById('sync-actions-wrap');
-  if(wrap) wrap.style.display = 'block';
-  // Pull from sheet first (pick up any existing data), then push local
-  await syncPull(false);
-  await syncPush(false);
-  closeOverlay('sync-overlay');
-  toast('Google Sheets sync enabled ✓');
-  setSyncDot('ok');
-}
-
-function clearSyncUrl() {
-  lsRemove(SYNC_URL_KEY);
-  var inp = document.getElementById('sync-url-input');
-  if(inp) inp.value = '';
-  var wrap = document.getElementById('sync-actions-wrap');
-  if(wrap) wrap.style.display = 'none';
-  setSyncDot('off');
-  closeOverlay('sync-overlay');
-  toast('Google Sheets sync disconnected');
-}
-
-// Apply initial workspace
-document.body.classList.add('ws-' + CURRENT_WS);
-applyWorkspaceBranding();
-buildCtxButtons();
-buildFilterCtxButtons();
-updateWsBar(CURRENT_WS);
-// Mark correct workspace button active
-var _wsb = document.getElementById('wsb-' + CURRENT_WS);
-if(_wsb) _wsb.classList.add('active');
-var _wsd = document.getElementById('wsd-' + CURRENT_WS);
-if(_wsd) { _wsd.style.background='rgba(255,255,255,0.1)'; _wsd.style.color='#fff'; _wsd.style.fontWeight='600'; }
 
 /* ══════════════════════════════════════════
    BACKUP & RESTORE SYSTEM
@@ -3599,6 +3481,12 @@ function createManualBackup() {
   var b = createBackup(CURRENT_WS, 'Manual');
   if(b) { toast('Backup saved — ' + b.count + ' action' + (b.count!==1?'s':'') + ' stored'); updateBackupStatusText(); }
   else toast('Nothing to backup — task list is empty');
+}
+
+
+function openSyncSettings() {
+  updateBackupStatusText();
+  openOverlay('sync-overlay');
 }
 
 function updateBackupStatusText() {
@@ -3826,17 +3714,10 @@ _lastTodayCount = tasks.filter(function(t){ return !t.done && isToday(t.due); })
 setTimeout(checkEOD, 1500);
 // Recheck every 5 minutes
 setInterval(checkEOD, 5*60*1000);
-// Init sync
-(function(){
-  var url = getSyncUrl();
-  setSyncDot(url ? 'ok' : 'off');
-  if(url) {
-    // Pull latest from Sheets — but only AFTER backup has run (800ms delay)
-    setTimeout(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 800);
-    // Auto-sync every 2 minutes while app is open
-    setInterval(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 2*60*1000);
-  }
-})();
+// Init Supabase sync — always connected
+setSyncDot('ok');
+setTimeout(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 1200);
+setInterval(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 2*60*1000);
 </script>
 
 <script>
