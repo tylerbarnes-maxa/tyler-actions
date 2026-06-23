@@ -1018,6 +1018,10 @@ input[type=range]{accent-color:var(--maxa-yellow);width:100%}
         <button class="btn-cancel" onclick="openRestoreModal()" style="flex:1;font-size:12px">↩ Restore backup</button>
       </div>
     </div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:11px;color:var(--text-muted)">Uploaded a new version?</span>
+      <button onclick="window.location.reload(true)" style="font-size:12px;padding:6px 14px;background:none;border:1.5px solid var(--border);border-radius:var(--radius-md);color:var(--text-secondary);cursor:pointer;font-family:inherit">↺ Reload app</button>
+    </div>
   </div>
 </div>
 
@@ -2696,10 +2700,14 @@ function updateWsBar(wsId) {
 function openMoreMenu() {
   var m = document.getElementById('more-menu');
   if(m) m.style.display = m.style.display === 'none' ? 'block' : 'none';
+  var fab = document.querySelector('.fab');
+  if(fab) fab.style.display = m && m.style.display !== 'none' ? 'none' : '';
 }
 function closeMoreMenu() {
   var m = document.getElementById('more-menu');
   if(m) m.style.display = 'none';
+  var fab = document.querySelector('.fab');
+  if(fab) fab.style.display = '';
 }
 // Close more menu when tapping outside
 document.addEventListener('click', function(e) {
