@@ -778,7 +778,7 @@ textarea{resize:vertical;min-height:70px}
     <div style="color:rgba(255,255,255,0.35);font-size:12px">One action per line</div>
     <button onclick="closeQC()" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:20px;cursor:pointer;padding:4px;line-height:1">✕</button>
   </div>
-  <textarea id="qc-text" placeholder="Follow up Sheldon on Hartley Group&#10;Prep board pack for Monday&#10;Call Jacob re Morrison account&#10;..." style="flex:1;background:transparent;border:none;color:#fff;font-size:16px;line-height:1.8;padding:16px;resize:none;outline:none;font-family:inherit"></textarea>
+  <textarea id="qc-text" placeholder="Call Sheldon re Morrison account&#10;Follow up Jacob on pricing approval&#10;Book SLT meeting for next week&#10;..." style="flex:1;background:transparent;border:none;color:#fff;font-size:16px;line-height:1.8;padding:16px;resize:none;outline:none;font-family:inherit"></textarea>
   <div style="padding:12px 16px calc(var(--safe-bottom) + 12px);display:flex;gap:8px;border-top:1px solid rgba(255,255,255,0.08)">
     <div style="flex:1;font-size:12px;color:rgba(255,255,255,0.35);align-self:center" id="qc-count">0 actions</div>
     <button onclick="closeQC()" style="padding:10px 16px;background:rgba(255,255,255,0.1);border:none;border-radius:var(--radius-md);color:rgba(255,255,255,0.6);font-size:14px;cursor:pointer;font-family:inherit">Cancel</button>
@@ -1220,10 +1220,9 @@ function load() {
     }
   } catch(e) {}
 
-  // Only seed sample tasks for Maxa — other workspaces start blank
+  // Start with empty task list — tasks come from Supabase sync
   if(!tasks || !tasks.length) {
-    if(CURRENT_WS === 'maxa') { tasks = seed(); saveTasks(); }
-    else tasks = [];
+    tasks = [];
   }
 
   // Load default members if none stored (or after contamination wipe)
@@ -1253,19 +1252,6 @@ function saveTasks() {
   try { lsSet(STORE_TASKS(), JSON.stringify(tasks)); } catch(e) {}
 }
 function saveMembers() { try { lsSet(STORE_MEMBERS(), JSON.stringify(members)); } catch(e){} }
-
-function seed() {
-  var t = today();
-  var yest = new Date(); yest.setDate(yest.getDate()-1); var ys = yest.toISOString().split('T')[0];
-  var soon = new Date(); soon.setDate(soon.getDate()+3); var ss = soon.toISOString().split('T')[0];
-  return [
-    {id:uid(),text:'Review Q2 board pack and add commercial commentary',ctx:'Board',prio:'High',due:t,assign:'Me',notes:'Need margin analysis by region — check with finance first',done:false,created:Date.now()},
-    {id:uid(),text:'Follow up with Sheldon re: outstanding quote for Hartley Group',ctx:'Field support',prio:'High',due:ys,assign:'Sheldon',notes:'Quote sent 12 Jun, awaiting response. Chase by phone.',done:false,created:Date.now()},
-    {id:uid(),text:'Submit SLT agenda items for Monday to Braden',ctx:'SLT',prio:'Normal',due:ss,assign:'Braden',notes:'',done:false,created:Date.now()},
-    {id:uid(),text:'Confirm pricing approval for Jacob on Morrison account',ctx:'Sales mgmt',prio:'Normal',due:ss,assign:'Jacob',notes:'Discount request exceeds 15% — needs board sign-off',done:false,created:Date.now()},
-    {id:uid(),text:'Call Callum re: strategic review timeline',ctx:'Board',prio:'Low',due:'',assign:'Callum',notes:'',done:false,created:Date.now()},
-  ];
-}
 
 /* ══════════════════════════════════════════
    ASSIGN BUTTONS (dynamic from members list)
