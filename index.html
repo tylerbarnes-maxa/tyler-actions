@@ -3331,6 +3331,12 @@ async function syncPush(showToast) {
       await supaFetch('POST', 'members', memberRows);
     }
 
+    // Push stats ledger so all-time stats survive across devices
+    var ledger = getLedger();
+    if(Object.keys(ledger).length > 0) {
+      await supaFetch('POST', 'tasks', [{id:'__ledger__', data:{ledger: ledger}, updated_at: new Date().toISOString()}]);
+    }
+
     lsSet(SYNC_LAST_KEY, Date.now().toString());
     setSyncDot('ok');
     if(showToast) toast('Pushed to Supabase ✓');
@@ -3357,20 +3363,39 @@ async function syncPull(showToast) {
     var dataChanged = false;
 
     if(Array.isArray(taskRows) && taskRows.length > 0) {
-      // Extract and apply tombstone row first
+      // Extract tombstone row
       var tombstoneRow = taskRows.find(function(r){ return r.id === '__deleted__'; });
       if(tombstoneRow && tombstoneRow.data && tombstoneRow.data.ids) {
         var remoteDeleted = tombstoneRow.data.ids;
         var localDeleted  = getDeletedIds();
         var merged_deleted = Object.assign({}, localDeleted, remoteDeleted);
         try { lsSet(DELETED_KEY, JSON.stringify(merged_deleted)); } catch(e){}
-        // Remove any locally held tasks that were deleted on another device
         var beforeCount = tasks.length;
         tasks = tasks.filter(function(t){ return !remoteDeleted[t.id]; });
         if(tasks.length < beforeCount) { _origSaveTasks(); dataChanged = true; }
       }
+
+      // Extract and merge ledger row — merge by taking highest completions per person
+      var ledgerRow = taskRows.find(function(r){ return r.id === '__ledger__'; });
+      if(ledgerRow && ledgerRow.data && ledgerRow.data.ledger) {
+        var remoteLedger = ledgerRow.data.ledger;
+        var localLedger  = getLedger();
+        var mergedLedger = Object.assign({}, localLedger);
+        Object.keys(remoteLedger).forEach(function(person) {
+          var remote = remoteLedger[person];
+          var local  = localLedger[person];
+          if(!local) {
+            mergedLedger[person] = remote;
+          } else {
+            // Take whichever has more completions recorded
+            mergedLedger[person] = remote.completions > local.completions ? remote : local;
+          }
+        });
+        try { lsSet(LEDGER_KEY, JSON.stringify(mergedLedger)); } catch(e){}
+      }
+
       // Parse data field if it came back as a string
-      var sheetTasks = taskRows.filter(function(r){ return r.id !== '__deleted__'; }).map(function(r) {
+      var sheetTasks = taskRows.filter(function(r){ return r.id !== '__deleted__' && r.id !== '__ledger__'; }).map(function(r) {
         if(!r.data) return null;
         if(typeof r.data === 'string') {
           try { return JSON.parse(r.data); } catch(e) { return null; }
