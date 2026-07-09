@@ -150,6 +150,8 @@ body.ws-mast .recur-interval-wrap, body.ws-home .recur-interval-wrap {
 
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;font-family:'Onest',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text-primary);overscroll-behavior:none}
+body.dark html, html:has(body.dark){background:#111316}
+body.dark{background:#111316}
 
 /* ── LAYOUT ── */
 .app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;background:var(--bg);position:relative}
@@ -1624,6 +1626,11 @@ function sendEmail() {
     var m = getMemberByName(memberName);
     if(!m) return;
     toEmail = m.email;
+  } else if(emailTaskId && emailTaskId.startsWith('__other__')) {
+    // Format: __other__Name__email@address.com
+    var parts = emailTaskId.replace('__other__','').split('__');
+    toEmail = parts[1] || '';
+    if(!toEmail) { toast('No email address found'); return; }
   } else {
     var t = tasks.find(function(x){ return x.id===emailTaskId; });
     if(!t) return;
@@ -1860,10 +1867,132 @@ function teamHTML() {
   });
 
   var mine = tasks.filter(function(t){ return t.assign==='Me' && !t.done; });
+
+  // ── OTHERS SECTION ──
+  // Tasks assigned to people who aren't core team members or Me
+  var teamNames = members.map(function(m){ return m.name; }).concat(['Me']);
+  var otherTasks = tasks.filter(function(t){
+    return !t.done && t.assign && teamNames.indexOf(t.assign) < 0;
+  });
+
+  if(otherTasks.length > 0) {
+    // Group by assignee name
+    var otherGroups = {};
+    otherTasks.forEach(function(t) {
+      if(!otherGroups[t.assign]) otherGroups[t.assign] = [];
+      otherGroups[t.assign].push(t);
+    });
+
+    html += `<div class="section-hd" style="margin-top:20px">Others</div>`;
+    html += `<div class="member-card" id="mc-others">
+      <div class="member-header" onclick="toggleMemberDropdown('others')">
+        <div class="member-header-left">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px">👥</div>
+          <div>
+            <div class="member-name">External contacts</div>
+            <div class="member-role">${Object.keys(otherGroups).length} contact${Object.keys(otherGroups).length!==1?'s':''}</div>
+          </div>
+        </div>
+        <div class="member-header-right">
+          <span class="member-count${otherTasks.filter(function(t){return isOver(t.due);}).length?' red':''}">${otherTasks.length} open${otherTasks.filter(function(t){return isOver(t.due);}).length?' · <span style="color:var(--red)">'+otherTasks.filter(function(t){return isOver(t.due);}).length+' overdue</span>':''}</span>
+          <svg class="member-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+      <div class="member-tasks-panel">`;
+
+    Object.keys(otherGroups).forEach(function(name) {
+      var personTasks = otherGroups[name];
+      var personOver  = personTasks.filter(function(t){ return isOver(t.due); }).length;
+      // Look up saved email for this contact
+      var savedContact = getContacts().find(function(c){ return c.name === name; });
+      var contactEmail = savedContact ? savedContact.email : (personTasks[0].assignEmail || '');
+
+      html += `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div>
+            <span style="font-size:13px;font-weight:600;color:var(--text-primary)">${esc(name)}</span>
+            ${personOver ? `<span style="font-size:11px;color:var(--red);margin-left:6px">⚠ ${personOver} overdue</span>` : ''}
+          </div>
+          ${contactEmail ? `<button class="email-btn" onclick="openEmailFromOther('${esc(name)}','${esc(contactEmail)}');event.stopPropagation()" style="font-size:11px;padding:4px 8px">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Follow up
+          </button>` : ''}
+        </div>`;
+
+      personTasks.forEach(function(t) {
+        var tOver = isOver(t.due);
+        html += `<div class="member-task-row" onclick="openDetail('${t.id}')">
+          <button class="mt-tick-btn" onclick="toggleDoneInline('${t.id}',event)" aria-label="Mark done">
+            <svg width="10" height="8" viewBox="0 0 11 9" fill="none" stroke="#888" stroke-width="2.2"><polyline points="1 4 4 8 10 1"/></svg>
+          </button>
+          <div style="flex:1;min-width:0">
+            <div class="member-task-text${tOver?' overdue':''}">${esc(t.text)}</div>
+            <div class="member-task-meta">
+              <span class="pill ${ctxClass(t.ctx)}" style="font-size:10px;padding:1px 6px">${esc(t.ctx)}</span>
+              ${t.due ? `<span class="member-task-due${tOver?' overdue':''}">${tOver?'⚠ Overdue: ':'Due '}${fmt(t.due)}</span>` : '<span class="member-task-due">No due date</span>'}
+            </div>
+          </div>
+          ${contactEmail ? `<button class="mt-email-btn" onclick="openEmailCompose('${t.id}',event)" title="Send follow-up">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>` : ''}
+        </div>`;
+      });
+      html += `</div>`;
+    });
+
+    html += `<div class="member-tasks-footer">
+      <button class="fu-btn" onclick="openAdd();event.stopPropagation()">+ Add action</button>
+    </div>
+    </div></div>`;
+  }
+
   html += `<div class="section-hd" style="margin-top:20px">My own actions</div>`;
   if(mine.length) mine.forEach(function(t){ html += cardHTML(t); });
   else html += `<div style="font-size:13px;color:var(--text-muted);padding:8px 0">Nothing assigned to yourself right now.</div>`;
   return html;
+}
+
+function openEmailFromOther(name, email) {
+  if(!email) { toast('No email saved for ' + name); return; }
+  var otherTasks = tasks.filter(function(t){ return t.assign===name && !t.done; });
+  var pick = function(arr){ return arr[Math.floor(Math.random()*arr.length)]; };
+  var firstName = name.split(' ')[0];
+
+  var subjects = [
+    'Actions check-in — ' + firstName,
+    'Quick one, ' + firstName,
+    'Touching base, ' + firstName,
+  ];
+  document.getElementById('email-subject').value = pick(subjects);
+
+  var body = 'Hey ' + firstName + ',\n\n';
+  if(otherTasks.length === 1) {
+    body += 'Checking in on this one:\n\n';
+    body += '"' + otherTasks[0].text + '"';
+    if(otherTasks[0].due) body += ' — due ' + fmt(otherTasks[0].due);
+    body += '\n\nWhere are you at with that?\n\n';
+  } else if(otherTasks.length > 1) {
+    body += 'Quick check-in on where we are with these:\n\n';
+    otherTasks.forEach(function(t){
+      body += '"' + t.text + '"';
+      if(t.due) body += ' — due ' + fmt(t.due);
+      body += '\n';
+    });
+    body += '\nWhere are you at with these?\n\n';
+  } else {
+    body += 'Just touching base — wanted to check in.\n\n';
+  }
+  body += 'Cheers,\n\nTyler';
+
+  var _etd = document.getElementById('email-to-display');
+  if(_etd) _etd.innerHTML = `<div class="email-to-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${esc(name)} &lt;${esc(email)}&gt;</div>`;
+  var _eb = document.getElementById('email-body'); if(_eb) _eb.value = body;
+
+  emailTaskId = '__other__' + name + '__' + email;
+  var _es = document.getElementById('email-subject'); if(_es) _es.value = pick(subjects);
+  updateCharCount();
+  var _sbi=document.getElementById('send-btn'); if(_sbi) _sbi.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:-2px;margin-right:5px"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>Open in Outlook';
+  openOverlay('email-overlay');
 }
 
 function openEmailFromTeam(memberName, overdueOnly) {
@@ -3819,12 +3948,14 @@ function initTheme(){
   var prefersDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
   var dark=saved==='dark'||(!saved&&prefersDark);
   if(dark) document.body.classList.add('dark');
+  document.documentElement.style.background = dark ? '#111316' : '';
   var btn=document.getElementById('theme-toggle');
   if(btn) btn.textContent=dark?'\ud83c\udf19':'\u2600';
 }
 function toggleTheme(){
   var dark=document.body.classList.toggle('dark');
   lsSet(THEME_KEY, dark?'dark':'light');
+  document.documentElement.style.background = dark ? '#111316' : '';
   var btn=document.getElementById('theme-toggle');
   if(btn) btn.textContent=dark?'\ud83c\udf19':'\u2600';
 }
