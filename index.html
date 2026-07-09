@@ -2276,6 +2276,68 @@ function dashboardHTML() {
   }
 
   html += '</div>';
+
+  // ── 7-DAY ACTIVITY SUMMARY ──
+  var now7       = Date.now();
+  var day7ago    = now7 - (7  * 24 * 60 * 60 * 1000);
+  var day14ago   = now7 - (14 * 24 * 60 * 60 * 1000);
+
+  // Tasks added this week vs last week
+  var addedThis  = tasks.filter(function(t){ return t.created && t.created >= day7ago; }).length;
+  var addedLast  = tasks.filter(function(t){ return t.created && t.created >= day14ago && t.created < day7ago; }).length;
+
+  // Tasks completed this week vs last week (from ledger trail)
+  // Use modified + done as proxy — tasks marked done in last 7 days
+  var trail = getTrail();
+  var doneThis = 0, doneLast = 0, emailsThis = 0, emailsLast = 0;
+  Object.values(trail).forEach(function(events) {
+    if(!Array.isArray(events)) return;
+    events.forEach(function(e) {
+      if(!e.ts) return;
+      var isDone  = e.event && (e.event === 'Marked done');
+      var isEmail = e.event && e.event.indexOf('Email follow-up sent') === 0;
+      if(e.ts >= day7ago) {
+        if(isDone)  doneThis++;
+        if(isEmail) emailsThis++;
+      } else if(e.ts >= day14ago) {
+        if(isDone)  doneLast++;
+        if(isEmail) emailsLast++;
+      }
+    });
+  });
+
+  function trendArrow(current, prev) {
+    if(prev === 0 && current === 0) return '<span style="color:var(--text-muted)">—</span>';
+    if(current > prev)  return '<span style="color:#16A34A;font-size:11px">▲ ' + (current - prev) + '</span>';
+    if(current < prev)  return '<span style="color:var(--red);font-size:11px">▼ ' + (prev - current) + '</span>';
+    return '<span style="color:var(--text-muted);font-size:11px">= same</span>';
+  }
+
+  html += `
+  <div style="margin-top:20px">
+    <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px">Last 7 days vs previous 7</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;text-align:center">
+        <div style="font-size:26px;font-weight:700;color:var(--maxa-yellow);line-height:1">${doneThis}</div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin:4px 0">Completed</div>
+        <div>${trendArrow(doneThis, doneLast)}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${doneLast} prev week</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;text-align:center">
+        <div style="font-size:26px;font-weight:700;color:var(--maxa-yellow);line-height:1">${addedThis}</div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin:4px 0">Added</div>
+        <div>${trendArrow(addedThis, addedLast)}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${addedLast} prev week</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;text-align:center">
+        <div style="font-size:26px;font-weight:700;color:var(--maxa-yellow);line-height:1">${emailsThis}</div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin:4px 0">Chasers sent</div>
+        <div>${trendArrow(emailsThis, emailsLast)}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${emailsLast} prev week</div>
+      </div>
+    </div>
+  </div>`;
+
   return html;
 }
 
