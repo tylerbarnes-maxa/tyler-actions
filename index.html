@@ -487,6 +487,26 @@ textarea{resize:vertical;min-height:70px}
 </style>
 </head>
 <body>
+
+<!-- ── LOCK SCREEN ── -->
+<div id="lock-screen" style="display:none;position:fixed;inset:0;z-index:9999;background:#131516;flex-direction:column;align-items:center;justify-content:center;font-family:'Onest',-apple-system,sans-serif">
+  <div style="width:100%;max-width:340px;padding:32px 24px;text-align:center">
+    <div style="font-size:42px;margin-bottom:8px">⚡</div>
+    <div style="font-size:28px;font-weight:700;color:#FFCD00;margin-bottom:4px">GSD</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:32px">Get Stuff Done</div>
+    <input id="lock-input" type="password"
+      placeholder="Enter password"
+      autocomplete="current-password"
+      style="width:100%;box-sizing:border-box;padding:14px 16px;font-size:16px;border-radius:12px;border:2px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;font-family:inherit;outline:none;text-align:center;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter') checkLock()">
+    <div id="lock-error" style="color:#F87171;font-size:13px;min-height:20px;margin-bottom:12px"></div>
+    <button onclick="checkLock()"
+      style="width:100%;padding:14px;background:#FFCD00;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;color:#131516">
+      Unlock
+    </button>
+  </div>
+</div>
+
 <div class="app" id="app">
 
   <!-- DESKTOP SIDEBAR -->
@@ -4022,16 +4042,98 @@ function toggleTheme(){
   if(btn) btn.textContent=dark?'\ud83c\udf19':'\u2600';
 }
 
-load();
-initTheme();
-autoBackupAll();
-// Init today count for confetti tracking
-_lastTodayCount = tasks.filter(function(t){ return !t.done && isToday(t.due); }).length;
-// Check EOD on load (in case app is opened after 5pm)
-setTimeout(checkEOD, 1500);
-// Recheck every 5 minutes
-setInterval(checkEOD, 5*60*1000);
-// Keep-alive ping — fires once per day to prevent Supabase free tier pausing after 7 days inactivity
+/* ══════════════════════════════════════════
+   LOCK SCREEN
+   Password hashed with SHA-256 — never stored in plain text.
+   Trusted devices auto-unlock after first successful login.
+══════════════════════════════════════════ */
+var LOCK_HASH_KEY    = 'maxa_lock_hash';
+var LOCK_TRUSTED_KEY = 'maxa_lock_trusted';
+// Set your password here — change this to anything you want
+var APP_PASSWORD = 'Maxa2026';
+
+async function hashPassword(password) {
+  var buf  = new TextEncoder().encode(password);
+  var hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function initLock() {
+  var lock = document.getElementById('lock-screen');
+  if(!lock) { initApp(); return; }
+
+  // Store hash on first run
+  var stored = lsGet(LOCK_HASH_KEY);
+  if(!stored) {
+    var h = await hashPassword(APP_PASSWORD);
+    lsSet(LOCK_HASH_KEY, h);
+    stored = h;
+  }
+
+  // Auto-unlock on trusted device
+  var trusted = lsGet(LOCK_TRUSTED_KEY);
+  if(trusted === stored) {
+    lock.style.display = 'none';
+    initApp();
+    return;
+  }
+
+  // Show lock screen
+  lock.style.display = 'flex';
+  setTimeout(function(){ var inp=document.getElementById('lock-input'); if(inp) inp.focus(); }, 100);
+}
+
+async function checkLock() {
+  var inp = document.getElementById('lock-input');
+  var err = document.getElementById('lock-error');
+  if(!inp) return;
+  var entered = inp.value;
+  if(!entered) { if(err) err.textContent = 'Please enter the password'; return; }
+
+  var stored  = lsGet(LOCK_HASH_KEY);
+  var entered_hash = await hashPassword(entered);
+
+  if(entered_hash === stored) {
+    // Mark device as trusted
+    lsSet(LOCK_TRUSTED_KEY, stored);
+    var lock = document.getElementById('lock-screen');
+    if(lock) {
+      lock.style.transition = 'opacity 0.3s';
+      lock.style.opacity = '0';
+      setTimeout(function(){ lock.style.display = 'none'; lock.style.opacity = '1'; }, 300);
+    }
+    initApp();
+  } else {
+    if(err) { err.textContent = 'Incorrect password'; }
+    if(inp) { inp.value = ''; inp.focus(); }
+    // Subtle shake animation
+    if(inp) {
+      inp.style.animation = 'none';
+      inp.style.borderColor = '#F87171';
+      setTimeout(function(){ inp.style.borderColor = 'rgba(255,255,255,0.15)'; }, 1500);
+    }
+  }
+}
+
+function initApp() {
+  load();
+  initTheme();
+  autoBackupAll();
+  // Init today count for confetti tracking
+  _lastTodayCount = tasks.filter(function(t){ return !t.done && isToday(t.due); }).length;
+  // Check EOD on load
+  setTimeout(checkEOD, 1500);
+  // Recheck every 5 minutes
+  setInterval(checkEOD, 5*60*1000);
+  // Init Supabase sync
+  setSyncDot('ok');
+  setTimeout(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 1200);
+  setInterval(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 2*60*1000);
+}
+
+// Start
+initLock();
+// Keep-alive ping — fires once per day to prevent Supabase free tier pausing
 (function keepAlive() {
   var KEEPALIVE_KEY = 'maxa_keepalive';
   var last = parseInt(lsGet(KEEPALIVE_KEY) || '0');
@@ -4045,8 +4147,6 @@ setInterval(checkEOD, 5*60*1000);
     }).catch(function(){});
   }
 })();
-setTimeout(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 1200);
-setInterval(function(){ _backgroundSync=true; syncPull(false).finally(function(){ _backgroundSync=false; }); }, 2*60*1000);
 </script>
 
 <script>
