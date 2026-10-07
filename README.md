@@ -1,90 +1,56 @@
-# tyler-actions
+# Tyler Actions v5.1
 
-A personal command centre, not a task database. **Rule: Tyler should spend less time managing tasks than doing them.**
+A refinement of the supplied V5 application, using its existing task records, contacts, recurrence, completion history, local storage and Supabase sync. The original v4 file is retained separately as a reference.
 
-Single-file PWA (`index.html`). localStorage plus Supabase sync, using the same tables as v4.
+## Audit and decisions
 
-## Navigation
+V5 already had strong foundations: waiting actions, local parsing, additive migration, undo, recurring actions, contact sync, backups and tombstone-based deletion. These have been retained.
 
-Mobile: **Today · Inbox · (+) · People · Later**. Review, Done, Settings and theme sit under ⋯.
-Desktop: the same items in the sidebar. Shortcuts: `N` capture · `F` focus · `/` search · `1–4` views · `Esc` close.
+The remaining friction was Inbox processing, overlapping priority/focus language, a dominant timer, redundant Later/Parked choices, rigid chase reminders, and a long wrap-up. Inbox is now a compatibility route to Later; it is no longer an obligation or navigation tab. Undated and parked records remain intact.
 
-| Screen | The one decision it asks |
-|---|---|
-| Today | What should I do? |
-| Inbox | Where does this belong? |
-| People | Who needs chasing? |
-| Later | Nothing (out of your head until it matters) |
-| Focus | Do this one thing |
+Chase copying/sharing previously logged success even when it failed or was cancelled. This now waits for success. Opening an email draft does not count as sending it: the app offers “Sent — log chase” afterwards.
 
-## Task lifecycle
+## Product model
 
-```
-Capture ─► Inbox (no date) ─► Mine (dated) ─► Done
-                 │                 │  ▲
-                 │                 ▼  │ "My move"
-                 └──────────► Waiting on <person> (chase date)
-Any open item ─► Parked (kept, never nags) · Dropped (kept in Done, guilt-free)
-```
+| Area | Behaviour |
+| --- | --- |
+| Navigation | Today · People · + · Later · More. Secondary functions remain in More and the desktop sidebar. |
+| Today | Your 3, Chase, Today. Quiet Later/Waiting counts and an evening Wrap up link. Four other actions are initially visible; more can be revealed. |
+| Top 3 | Up to three pinned actions. A fourth opens a swap chooser, including when captured or edited. Pins appear first; unfilled places may show due deadlines. If nothing is pinned or due as a deadline, busy days suggest up to three actions. |
+| Urgency | Deadline counts are always visible; late deadlines sort first among the remaining Today actions. Ordinary resurfacing dates never turn red. |
+| People | “They owe me” and “I need to raise”, with due chases, last chase and next reminder. |
+| Conversation | Expand a person and tap “I’m with [name]”. Tick off talking points, receive owed items, or open their quick actions. Updates and undo appear immediately. |
+| Capture | Type and press Enter. Undated actions save directly into Later. Local parsing produces removable person/date/area/Top 3 chips; advanced fields stay under More options. |
+| Dates | Ordinary dates mean “When should I see this again?”. “Actual deadline” stays in More options. Tomorrow means the next calendar day; recurrence and the two-working-day chase option skip weekends. |
+| Later | Future items plus Unplanned. No Inbox triage and no required distinction between undated and parked actions. |
+| Focus | One action with Done / Waiting / Next. Timer appears only when requested and resets for the next action. |
+| Chase | Draft one message for all outstanding items. Choose Tomorrow / 2 working days / Friday / Next week and confirm. Future agreed dates later than the selected reminder are preserved per item. |
+| Wrap | Five relevant decisions at a time. Tomorrow / Later / Waiting / Drop. Stale tasks offer Tomorrow / Later / Drop, without a Keep loophole. No automatic rescheduling. |
+| Review | Late, waiting and stale counts, a small area breakdown of completions this week, and up to six stale decisions. Percentages describe completed actions, not measured time. |
 
-- **States:** `mine` · `waiting` · `parked` · `done` · `dropped`
-- **One date field.** It is *soft* by default ("show on"). A soft item goes to Later until its date, then sits on Today. It never goes red.
-  - *Hard* (`by Friday`, or the Hard deadline toggle) is a real deadline. It can be late.
-  - For Waiting items, the date is the **chase date**.
-- **Focus** (★): up to **3** items. Pinning a 4th asks you to swap one out.
-- **Areas:** Sales · Leadership · Team · Shareholder · Personal. Optional, and inferred from keywords where possible.
+## Compatibility and backups
 
-## Today, in order
+- Storage keys and the V5 task schema are unchanged. No schema change or task deletion is needed to absorb Inbox into Later.
+- Existing undated `mine` and `parked` items appear in Later → Unplanned.
+- V4 migration is preserved, including context mapping and original date retention for old ordinary tasks. Actual deadlines are protected from the old fresh-start date reset.
+- The permanent `backup_pre_v5` and daily backups are retained. An additional one-time `backup_pre_v51` snapshot is taken when existing local tasks first load; both permanent snapshots can be restored in Settings.
+- Existing Supabase tables, tombstones, dirty rows, pull/merge, retry queues, contact records and completion history remain compatible. Do not use the old v4 app alongside this version: v4 has older cloud deletion behaviour.
+- The application does not send messages automatically. Email opens the device email client; sharing opens the system share sheet.
 
-1. **Morning brief** (before 11:00, once a day): count, what's late, people to chase, a suggested first move, and **Start day**.
-2. **Must move**: Focus items, plus hard deadlines due today or late. If nothing is pinned and the day is busy, the app suggests 2.
-3. **Chase**: people with Waiting items whose chase date has arrived, grouped by person, with one **Chase all** button.
-4. **Also today**: other items dated today or earlier. Six are shown, with "show more" for the rest.
-5. **Footer**: Inbox count, coming up, and waiting-but-not-due.
-6. **Wrap up** (after 16:00): every unfinished item gets one tap: Tomorrow · Next week · Waiting · Drop · Keep. Items moved 3× or older than 21 days are challenged ("still worth doing?").
+## Install / update
 
-## People
+1. In the existing app, use Settings → Back up now.
+2. Replace its deployed `index.html` with the included `index.html`, and put `sw.js` beside it. Keep the same hostname and app path so the browser can access the existing local data.
+3. Reload the app. Settings reports v5.1. Existing tasks and contacts should be present; undated items are under Later.
 
-Each person card shows: to chase · waiting · to raise · last chased.
+The HTML works on its own; the small companion worker enables offline app-shell loading when hosted over HTTPS (or localhost). Opening a downloaded file is a separate browser origin and does not automatically access the existing installation's local data. No live site has been deployed by this update.
 
-**Chase all** writes one short message covering everything outstanding, which you can send by Email (Outlook) or Share/Copy (WhatsApp/Teams). Every item is then logged as chased, and the next chase is set for 2 working days later.
+## PWA
 
-People can be Team, Internal, Customer, Supplier or Other. Old "Other" contacts were merged in, so they now sync.
+The previous blob service-worker registration was rejected by browsers. The included real `sw.js` registers with the app directory as its scope. It caches app navigation only, never Supabase task/contact responses. Updates use the network when available and the cached app shell when offline. External web fonts fall back to system fonts offline.
 
-## Capture
+## Verification
 
-Type, then Enter. Everything the parser infers is shown as a chip you can remove with ×. Multi-line paste creates multiple actions.
+Headless Chromium checks cover capture and natural-language examples, Today membership, the three-item cap and swapping, optional timers, conversation updates and undo, reminder choices and preserved future promises, share cancellation, recurring completion/undo, stale wrap decisions, reload persistence, retained history, and all main screens at 360px, 390px and 1280px. Extra checks cover notes retained when More options is collapsed, V4 migration and permanent snapshots, mocked cloud merges/tombstones, and offline shell loading. No real customer tasks were changed and no real follow-up messages were sent.
 
-- `Chase Sheldon about Speedy quote Friday` → Waiting on Sheldon · "Speedy quote" · chase Fri · Sales
-- `Review monthly sales report tomorrow` → Mine · tomorrow
-- `by Thursday` = hard deadline · `!` = Focus · `#sales` `#lead` `#team` `#share` `#personal`
-
-## Gestures
-
-Each gesture has a button equivalent, so nothing depends on swiping.
-
-- Swipe right = Done
-- Swipe left = Tomorrow / Waiting / Later
-- Long-press = Focus
-- Tap = inline actions
-
-Every change can be undone from the toast.
-
-## Migration (v4 → v5, automatic, additive)
-
-- The storage key is unchanged (`maxa_tasks_v4`). Old fields are kept, new ones are added (`state`, `hard`, `focus`, `waitingSince`, `chases`, `rolls`, `doneAt`, `v:5`).
-- `done` → done. Assigned to someone → **waiting** on them. Everything else → mine.
-- Contexts: Board→Shareholder, SLT→Leadership, Sales mgmt→Sales, Field support→Team.
-- **Fresh start:** mine items dated more than 7 days ago move to Inbox (the original date is kept in `oldDue`), so Today opens calm.
-- Priority is no longer shown. High still nudges the suggestions.
-- A full **pre-redesign snapshot** (`backup_pre_v5`) is taken once and never rotated. You can restore it from Settings › Backups.
-
-## Sync fixes
-
-- v4 deleted every remote row that was missing locally, so a fresh or cleared device could wipe the cloud. Now remote deletes only follow tombstones.
-- Only changed rows are pushed (debounced). Failed pushes are queued and retried.
-- Dates use local time. v4 used UTC and showed yesterday between 00:00 and 01:00 BST.
-
-## Removed
-
-Removed: quotes, confetti, milestones, leaderboard and on-time %, drag-reorder, the filter/sort modal, the workspace switcher, a separate Focus and Hyper Focus Zone (now one Focus), and the separate Overdue/All tabs.
+Live Supabase connectivity and email delivery are not verified: automated checks isolate network requests and use sample data.
