@@ -1,77 +1,66 @@
-# Tyler Actions v5.2
+# Tyler Actions v6.0
 
-This release is a usability pass on v5.1. The model is unchanged (Today / People / Later, Mine / Waiting / Done, Top 3, chase-all, soft dates vs real deadlines, undo, Supabase sync). This release removes, merges and caps rather than adds.
+v5.2 was built to keep Today short. It capped the list, let older items slip out of view and put the rest behind a Later tab. That made the list hard to see, so it stopped being the place to work from. v6 keeps the v5 engine and replaces the screens with one board that shows every open action.
 
 ## What changed
 
+### One board instead of Today and Later
+
+Four columns, all visible at once on a laptop:
+
+- Today: everything dated today or earlier, pinned items first, late deadlines in red.
+- Coming up: the next five working days, one heading per day, so you can see the shape of the week.
+- Later: actions with no date at the top, then anything scheduled further out.
+- Waiting: grouped by person, with a Chase button on each. The button is yellow when a chase is due.
+
+Nothing is capped, slipped or hidden at weekends any more. If it's open, it's on the board. On the phone the same four sections stack in one scroll, with four pills at the top to jump between them. Tap a section heading to fold it.
+
+### Adding an action
+
+On the laptop there's a bar across the top of every screen. Press N, type or dictate with Wispr Flow, press Enter. The bar stays focused for the next one. As you type it shows what it understood and which column the action will land in.
+
+- "Chase Sheldon about the Speedy rebate Friday" goes to Waiting on Sheldon, chase Friday.
+- "Send the KDM letter by Tuesday" goes to Tuesday as a deadline.
+- No date mentioned means it lands in No date, top of the Later column.
+- Paste a list and each line becomes an action. Bullets and numbering are stripped.
+- Dictate several sentences and it offers to split them into separate actions.
+
+On the phone the + button opens the same single-field capture as before.
+
+### Moving things
+
+- Drag a card to another column, a day, or a person. Dropping on a person marks it Waiting on them.
+- Hover a card for pin, move, waiting and edit.
+- Click a card for Done, Tomorrow, Waiting and More.
+- Keyboard: arrows to select, then X done, T today, M tomorrow, W waiting, S pin, E edit, D move. The letters only work after you've selected a card with the arrows.
+- Every change still has Undo in the toast.
+
 ### Removed
 
-- Morning banner. It is replaced by "Start here" on the first Top 3 card before 11:00.
-- "I'm with [Name]" conversation overlay. It is replaced by a small **1:1 mode** chip that enlarges the expanded person card.
-- Second "Remind me again" chase sheet, and the "Sent — log chase" step.
-- Mobile top-bar ⋯. The bottom-nav **More** is the only one.
-- "Show more" on Today.
-- Eight-button expanded cards.
-- The Parked / Unplanned / "Later — no reminder" options in capture and edit.
+- The cap on Today, the Top 3 suggestions and "Start here".
+- Slipped items and the sorter prompts.
+- Weekend hiding.
+- The Later tab (now a column) and the sidebar Capture button (now the bar).
+- The wrap-up prompt.
 
-### Merged
+### Kept as it was
 
-- Pinning is always **Top 3** (★). **Focus** is only the one-at-a-time session.
-- Someone owes you → **Waiting on [Name]**. Yours, involving them → **To raise with [Name]**.
-- Undated and parked items → **No date**, a group inside Later. Parked records keep their data field.
-- Snooze, dates, Top 3, Edit and Drop → one **More…** sheet per item.
-
-### Changed
-
-- **Today is finite.** It shows Top 3, Chase (max 3 people, then "+N more in People"), and at most 5 other items.
-  - Order: deadlines, then items dated today, then items linked to a person, then most recently scheduled.
-  - The count pill always equals what's visible.
-- **Top 3 suggestions** only come from deadlines, items dated today and legacy High priority. They never come from old items. They are shown lighter, with ★ to keep, and only when at least 2 good candidates exist.
-- **Expanded cards have four buttons, 44px tall, on one line at 360px.**
-  - Mine: Done · Tomorrow · Waiting · More…
-  - Waiting: Got it · Chase · My move · More…
-  - Swipe left: Tomorrow / Waiting / More (Waiting items: Chase / My move / More). Swipe right is still Done.
-- **Chase takes two taps.** One sheet has the message, a "Next chase" picker (default 2 working days) and Email / WhatsApp-Share / Copy / Just log it.
-  - Sending logs the chase immediately, with Undo.
-  - A cancelled share doesn't log. Later agreed dates on items are still preserved.
-- **Working days.** The Tomorrow buttons, swipe, wrap, Focus and sorter target the next working day, and read "Monday" on Friday. "tomorrow" typed in capture keeps its literal meaning.
-- **Weekends.** Today shows only deadlines and Personal items, plus "Weekend — N work items wait for Monday".
-- **Wrap-up** opens with "✓ N done today. M to decide." It counts visible items only, 5 at a time. The buttons are Tomorrow · Next week · Waiting · Drop. "Later" no longer sends things to No date.
-
-### Added
-
-- **Slipped.** An ordinary dated item that sits on Today for 2+ working days drops out of view.
-  - It is derived from `due` alone: nothing is deleted or re-dated.
-  - One quiet line ("4 slipped · 4 more for today — sort in 30 seconds ›") opens a one-at-a-time sorter: Tomorrow · This week · Next week · No date · Drop, and swipe right = Tomorrow.
-  - Items moved 3× get "still worth doing?" with Drop highlighted.
-  - The same items also appear at the top of Later.
-- **Weekly No-date sort.** On Mondays, or when No date passes 10 items, one line offers a 2-minute sort: This week · Next week · Keep · Drop. It shows once per week.
+People, chase-all messages, Focus, Done, Review, Settings, backups, password lock, Supabase sync, recurring actions, the email-to-task inbox.
 
 ## Compatibility
 
-- **Data is unchanged.** Storage keys, task schema, Supabase tables, tombstones, merge and retry queue are all as before. There are no new task fields.
-- **A new backup is taken.** `backup_pre_v52` is a one-time snapshot taken on first load. It can be restored from Settings › Backups, alongside `backup_pre_v5` and `backup_pre_v51`.
-- **Don't run v4 alongside v5.x.** v4 still has the old cloud-deletion behaviour.
+- Data is unchanged. Same storage keys, same task fields, same Supabase tables and sync logic. v5.2 and v6 can read each other's data.
+- A one-off backup called "Before v6" is taken on first load. Restore it from Settings, Backups.
+- Actions created by the email parser arrive in the right column and flash yellow when they land. They carry a small envelope mark.
 
 ## Install
 
-1. In the current app: Settings › Back up now.
-2. Replace the deployed `index.html`, keep `sw.js` beside it (unchanged from v5.1), and keep the same host and path.
-3. Reload. Settings should say v5.2.
+1. In the current app: Settings, Back up now.
+2. Upload this `index.html` to the GitHub repo in place of the current one. Leave `sw.js` where it is (the copy here is identical to the live one).
+3. Reload on each device. Settings should say v6.0.
 
-## Verification
+## Tested
 
-Headless Chromium was run with 30+ seeded actions, 5 people with due chases, slipped, undated, deadline and recurring items, with a mocked clock and mocked Supabase. All 21 checks passed with no page errors:
+Headless Chromium, 31 seeded actions in both v5 and email-parser shapes, mocked Supabase. 74 checks passed with no page errors: layout at 1920, 1600, 1366, 960 and 390 wide; the add bar with dictated phrases, deadlines, pasted lists and sentence splitting; drag between every column; hover and keyboard actions; undo; search; chase sheet; focus; dark mode; lock screen on a fresh device; first sync onto an empty device; an emailed action arriving through sync.
 
-- Top 3 and the first chase are visible without scrolling at 390×844.
-- Today shows ≤ 3 + 5 cards and ≤ 3 chase people, and the pill matches.
-- Slipped items leave Today with no data change.
-- The sorter defers and advances, and moved-3× items highlight Drop.
-- Chase is logged in 2 taps with next = +2 working days, and Undo restores it.
-- Expanded cards have 4 buttons, one row at 360px, ≥ 44px tall.
-- Retired words are absent across Today, People, Later, capture and the More sheet.
-- Morning "Start here", the evening wrap count, and Friday → "Monday" behave as specified.
-- Weekend filtering works, and the Monday No-date nudge appears.
-- v4 data migrates with zero loss and remote rows merge, with no remote DELETE calls.
-
-Not verified: live Supabase, real email or share delivery, and behaviour on a physical phone.
+Not tested: the live Supabase project, a physical phone, real Wispr Flow dictation, swipe gestures (code unchanged from v5.2), and weekend dates.
