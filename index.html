@@ -491,7 +491,7 @@ body.dnd .grp{min-height:36px}
 .main{position:relative;isolation:isolate}
 .wbg{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:#F6F7F8;contain:strict}
 .wbg i{position:absolute;inset:0;opacity:0;background-size:cover;background-position:center bottom;background-repeat:no-repeat}
-.wbg::after{content:'';position:absolute;inset:0;z-index:3;pointer-events:none;background:rgba(246,247,248,0.286)}
+.wbg::after{content:'';position:absolute;inset:0;z-index:3;pointer-events:none;background:rgba(246,247,248,0.4643)}
 body.dark .wbg{display:none}
 @media(max-width:899px){.wbg{bottom:calc(var(--safe-bottom) + 57px)}}
 @media(min-width:900px){body:not(.dark) .topbar{background:transparent}}
@@ -1432,7 +1432,7 @@ function vSettings(){
   h+='<div class="setting"><h3>Backups</h3><p>'+(b.length?b.length+' on this device · latest '+ago(b[0].b.ts)+' ago. A daily backup is taken automatically; the pre-redesign snapshot is never overwritten.':'No backups yet.')+'</p><div class="row"><button class="btn" data-a="backup">Back up now</button><button class="btn" data-a="restoreList">Restore…</button></div></div>';
   h+='<div class="setting"><h3>Appearance</h3><p>Follows your device unless you choose.</p><div class="row">'+['system','light','dark'].map(function(m){ return '<button class="chip '+(theme===m?'sel':'')+'" data-a="theme" data-v="'+m+'">'+m.charAt(0).toUpperCase()+m.slice(1)+'</button>'; }).join('')+'</div></div>';
   h+='<div class="setting"><h3>People</h3><p>'+members.length+' people saved. Manage names, emails and type from the People screen.</p><button class="btn" data-a="go" data-v="people">Open People</button></div>';
-  h+='<div class="setting"><h3>App</h3><p>Tyler Actions v6.2.1 · everything on one board.</p><button class="btn" data-a="reload">Reload app</button></div>';
+  h+='<div class="setting"><h3>App</h3><p>Tyler Actions v6.2.2 · everything on one board.</p><button class="btn" data-a="reload">Reload app</button></div>';
   return h;
 }
 

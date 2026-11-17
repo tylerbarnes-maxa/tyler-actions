@@ -1,4 +1,27 @@
-# Tyler Actions v6.2.1
+# Tyler Actions v6.2.2
+
+v6.2.2 takes the winter background down to about 15% strength. Only `index.html` changed. The image files are the same.
+
+## What's new in v6.2.2
+
+- The single wash over the images is now `rgba(246, 247, 248, 0.4643)`. It replaces the 0.286 wash from v6.2.1. There is still only one overlay.
+- The images carry 28% strength, so the wash leaves about 15% (28 x 0.5357). Measured on screen against the supplied midday image: 15.1%.
+- Cards, text, controls, hourly switching and the crossfade are unchanged.
+- The faintest grey label on the picture now measures 5.7:1 at its worst spot.
+
+## Install
+
+Upload this `index.html` to the GitHub repo in place of the current one. Leave `sw.js` and the `backgrounds` folder as they are. Settings should say v6.2.2 after a reload.
+
+## Tested
+
+157 checks passed in headless Chromium: the v6.2.1 set re-run with the new value, plus a check that only one overlay exists and the old one is gone.
+
+Not tested: the live GitHub Pages site, a physical phone or the installed Windows app.
+
+---
+
+# v6.2.1 notes
 
 v6.2.1 softens the winter background from 28% to about 20% strength. Only `index.html` changed. The image files are the same.
 
