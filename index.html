@@ -486,6 +486,17 @@ body.dnd .grp{min-height:36px}
 .ch-title{display:flex;align-items:center;gap:10px}
 #ch-subj{margin-bottom:8px;font-weight:600}
 .ch-grid .btn.pri{grid-column:1/-1}
+
+/* v6.2 winter background: one hourly image behind the main pane. Sidebar, cards and dark mode untouched. */
+.main{position:relative;isolation:isolate}
+.wbg{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:#F6F7F8;contain:strict}
+.wbg i{position:absolute;inset:0;opacity:0;background-size:cover;background-position:center bottom;background-repeat:no-repeat}
+body.dark .wbg{display:none}
+@media(max-width:899px){.wbg{bottom:calc(var(--safe-bottom) + 57px)}}
+@media(min-width:900px){body:not(.dark) .topbar{background:transparent}}
+@media(prefers-reduced-motion:reduce){.wbg i{transition:none!important}}
+/* small grey labels that sit straight on the picture use the existing secondary grey so they stay readable low down */
+body:not(.dark) .main :is(.col-h span,.grp-h i,.grp.empty .grp-h,.col-empty,.vh p,.sec:not(.must) h2,.sec h2 i,.hint,.calm,.quiet-links,.search-bar .chip.ghost){color:var(--t2)}
 </style>
 </head>
 <body>
@@ -525,6 +536,7 @@ body.dnd .grp{min-height:36px}
   </aside>
 
   <div class="main">
+    <div class="wbg" id="wbg" aria-hidden="true"><i></i><i></i></div>
     <header class="topbar">
       <div class="qa" id="qa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><textarea id="qa-text" rows="1" placeholder="Add an action. Type or dictate, then Enter" autocomplete="off" aria-label="Add an action"></textarea><kbd>N</kbd><div class="qa-pop" id="qa-pop"></div></div>
       <div class="tb-brand"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAEaklEQVR42u2WXWgUVxTH/3NndtbZj+yyJKuLDWlSatdYEIQoggaKjSAteVJ8UISWWgkIFgI+tCCal/ZJkL70RSghxj5oC6EQ6xdUalsogYUmXYjENeZj3LSYuNmduB9z/n3Y7CabtXmsL3seZrhzuOf8zrnc/xlNRIjXaAqv2RoADYAGgPFfDhEBSWiaBqVqOUlCRNaqUAqaplV95Jq0aJpW9a3urnjKz41CJCJ1SSsJlVIQEei6Xgfsum4NyEZfGYSApleC1gOQrCZOpVKwbRuRSATxeLwKp5RCoVBAIpHA8+fPEQ6HsXv3bliWBZJY+HsBS4tLME0PRIhgMIhoNLpWe/EfgAKY0fJbRCgidEslkuTU1BR7enqo6zpN06RSivv27ePDhw/pui4TiQTj8Tg1TWMgEKDH9DAUCvHy5cskyXOfnSMAmqaHSmk0TZM977/HvybTdPN/spQaoJSyFHEpIjQqlWtKYXFxEUeOHMHy8jKuXbuGHTt2YHZ2Fv39/bh06RJu3bqFixcvwnEcTE9PIxwO49mzZxgcHEQgEAAAFPIFNDc34+rVb0FoePxoHNd/+BnOzBBU8Xu47cOA7i9Xv9pWFgsFkuSVK1eoaRonJye50UqrHTpx4gSbmpo4PDzMZDJZ/V6xvr4+drz19uqqHJeZH8mxEJn5jUJS3CIrnS8DFIskyZMnT7Kzs7O8tVDghQsXuHdvF3t7e9nb28uRkRE+ffqUhw4doq7rBMCmpiYePHiQd+7cIUmeOfMp295sZ3FlgYXEB3T++JDur+CT37/g1998R4rLUqlUBVDrb8b27dsxPz8Px3Hg8XjQ3NyMnTs7EYlEMDIyAtu20drairt378Ket3H/3n0MDAwgm83i6NGjyGaz8Hq3AFKEsaUFnne+gpUfhYp/iVOfT2Aq+QugqZorDBGptnF8fJyGYfDYsWO0bbva1v7+fvr9fqbTaY6OjvLGjRs1bR8cHCQAptNpnj9/nm1tbcxkXvDFcp4zj+/xk48/IgAmk8nqcdYcwXqImzdvMhwO0+fzsb2jnX6/n7quc2hoiCR59uxZAmA0GuWuXbvY0dFBADx+/DhFhKdPnyYARiIRhkJBeswgfT4frw8P1yUXEdbogAih6wqLiy9w+/ZPmJubRUtLCw4fPoytW7dWdSCVSuHBgweYmZmBZVno6upCd3c3AGBsbAwTExMwDAMigmDQj/37DyAabYErgNLWq2GdEgrcogPDNAF4AQCO48BxHGQyGcRiMSwtLcE0Tfh8PliWhWw2i5WVFViWhVwuB6/XC9M0ARJCQuk6fJaFUj4D3dABzbumhnWzQArQi3MovSwB3igS43OYfjKFQCCIbdu2IRaLIZlMIhAIwDAM2LaNUCiEfD6PPXv24NGjSWSzOShN4WX+JXK5HGKxN9B94F1ohXnAVYDZWtaBV3dAq8wIgMArZL1uKK3X/o3rSiCyNu4mR1DrXNu1OURl6m0Gt3EKbgLQ+CNqADQAGgD/r/0L0IcSlKgYYr0AAAAASUVORK5CYII=" alt=""><span class="tb-name">Tyler Actions</span><span class="sync-dot" id="sync-dot" title="Sync"></span></div>
@@ -1419,7 +1431,7 @@ function vSettings(){
   h+='<div class="setting"><h3>Backups</h3><p>'+(b.length?b.length+' on this device · latest '+ago(b[0].b.ts)+' ago. A daily backup is taken automatically; the pre-redesign snapshot is never overwritten.':'No backups yet.')+'</p><div class="row"><button class="btn" data-a="backup">Back up now</button><button class="btn" data-a="restoreList">Restore…</button></div></div>';
   h+='<div class="setting"><h3>Appearance</h3><p>Follows your device unless you choose.</p><div class="row">'+['system','light','dark'].map(function(m){ return '<button class="chip '+(theme===m?'sel':'')+'" data-a="theme" data-v="'+m+'">'+m.charAt(0).toUpperCase()+m.slice(1)+'</button>'; }).join('')+'</div></div>';
   h+='<div class="setting"><h3>People</h3><p>'+members.length+' people saved. Manage names, emails and type from the People screen.</p><button class="btn" data-a="go" data-v="people">Open People</button></div>';
-  h+='<div class="setting"><h3>App</h3><p>Tyler Actions v6.1 · everything on one board.</p><button class="btn" data-a="reload">Reload app</button></div>';
+  h+='<div class="setting"><h3>App</h3><p>Tyler Actions v6.2 · everything on one board.</p><button class="btn" data-a="reload">Reload app</button></div>';
   return h;
 }
 
@@ -2383,6 +2395,121 @@ function resetCard(card){ if(!card) return; var i=card.querySelector('.c-inner')
 /* ══════════════════════════════════════════
    LOCK (unchanged from v4) + INIT
 ══════════════════════════════════════════ */
+/* ══════════════════════════════════════════
+   WINTER BACKGROUND (v6.2)
+   24 pre-faded images, one per Europe/London hour, shown at full opacity.
+══════════════════════════════════════════ */
+var WinterBg=(function(){
+  var DIR='backgrounds/', TZ='Europe/London', FADE=650, PAD=300, TICK=60000;
+  var fmt=null, layers=[], cur=-1, shown=-1, want=-1, token=0;
+  var timer=0, fadeT=0, pendingOld=null, running=false, cache={}, fails=0, nextTry=0, lastForce=0;
+
+  function londonHour(d){
+    try{
+      if(!fmt) fmt=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',hourCycle:'h23'});
+      var h=parseInt(fmt.format(d||new Date()),10);
+      if(h>=0&&h<=23) return h;
+      if(h===24) return 0;
+    }catch(e){}
+    return (d||new Date()).getHours();
+  }
+  /* UK time is always a whole number of hours from UTC, so the next hour starts on a UTC hour. */
+  function msToNext(){ return 3600000-(Date.now()%3600000); }
+  function nextHour(){ return londonHour(new Date(Date.now()+msToNext()+1000)); }
+  function url(h){ return DIR+'winter-'+(h<10?'0':'')+h+'.webp'; }
+
+  function load(h){
+    if(cache[h]) return cache[h].p;
+    var im=new Image(), u=url(h);
+    var p=new Promise(function(res,rej){
+      im.onload=function(){
+        var ok=function(){ res(u); };
+        if(im.decode) im.decode().then(ok,ok); else ok();
+      };
+      im.onerror=function(){ delete cache[h]; rej(new Error('background '+h)); };
+    });
+    cache[h]={p:p,im:im};
+    im.src=u;
+    return p;
+  }
+  function prune(){ var keep=nextHour(); Object.keys(cache).forEach(function(k){ if(+k!==shown&&+k!==want&&+k!==keep) delete cache[k]; }); }
+
+  function settle(){
+    clearTimeout(fadeT); fadeT=0;
+    if(pendingOld){ pendingOld.style.transition='none'; pendingOld.style.opacity='0'; pendingOld.style.backgroundImage='none'; pendingOld=null; }
+    if(cur>=0){ layers[cur].style.transition='none'; layers[cur].style.opacity='1'; }
+  }
+  function show(h,u){
+    if(!layers.length) return;
+    settle();
+    var first=cur<0, old=first?null:layers[cur], n=first?0:1-cur, el=layers[n];
+    var still=first||(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    el.style.transition='none'; el.style.opacity='0'; el.style.zIndex='2';
+    el.style.backgroundImage='url("'+u+'")';
+    if(old) old.style.zIndex='1';
+    void el.offsetWidth;
+    if(!still) el.style.transition='opacity '+FADE+'ms ease';
+    el.style.opacity='1';
+    cur=n; shown=h;
+    /* the old image stays fully visible underneath until the new one has finished arriving */
+    if(old){ pendingOld=old; fadeT=setTimeout(settle,(still?0:FADE)+120); }
+  }
+
+  function check(force){
+    if(!running) return;
+    var h=londonHour(), now=Date.now();
+    if(force&&fails&&now-lastForce>30000){ lastForce=now; nextTry=0; }
+    if(h!==shown&&h!==want&&now>=nextTry){
+      want=h; var my=++token;
+      load(h).then(function(u){
+        if(my!==token||!running) return;
+        fails=0; nextTry=0; want=-1;
+        show(h,u); prune();
+        load(nextHour()).catch(function(){});
+      },function(){
+        if(my!==token) return;
+        want=-1; fails++;
+        nextTry=Date.now()+Math.min(TICK*Math.pow(2,fails-1),15*60000);
+      });
+    }
+    schedule();
+  }
+  function schedule(){
+    clearTimeout(timer); timer=0;
+    if(!running||document.hidden) return;
+    timer=setTimeout(check,Math.min(msToNext()+PAD,TICK));
+  }
+
+  function onVis(){ if(document.hidden){ clearTimeout(timer); timer=0; } else check(true); }
+  function onWake(){ check(true); }
+  function onHide(){ clearTimeout(timer); timer=0; }
+
+  function start(){
+    if(running) return;
+    var box=document.getElementById('wbg'); if(!box) return;
+    layers=[].slice.call(box.children);
+    if(layers.length<2) return;
+    running=true;
+    document.addEventListener('visibilitychange',onVis);
+    window.addEventListener('focus',onWake);
+    window.addEventListener('pageshow',onWake);
+    window.addEventListener('online',onWake);
+    window.addEventListener('pagehide',onHide);
+    check();
+  }
+  function stop(){
+    if(!running) return;
+    running=false; token++; want=-1;
+    clearTimeout(timer); timer=0; settle();
+    document.removeEventListener('visibilitychange',onVis);
+    window.removeEventListener('focus',onWake);
+    window.removeEventListener('pageshow',onWake);
+    window.removeEventListener('online',onWake);
+    window.removeEventListener('pagehide',onHide);
+  }
+  return {start:start,stop:stop,hour:londonHour,state:function(){ return {running:running,shown:shown,layer:cur,timer:!!timer,fails:fails,cached:Object.keys(cache).map(Number)}; }};
+})();
+
 var LOCK_HASH_KEY='maxa_lock_hash', LOCK_TRUSTED_KEY='maxa_lock_trusted', APP_PASSWORD='Maxa2026';
 async function hashPassword(p){ var buf=new TextEncoder().encode(p); var h=await crypto.subtle.digest('SHA-256',buf); return Array.from(new Uint8Array(h)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join(''); }
 async function initLock(){
@@ -2401,7 +2528,7 @@ async function checkLock(){
 var _inited=false;
 function initApp(){
   if(_inited) return; _inited=true;
-  applyTheme(); bindOverlays(); load(); dailyBackup(); render(); setSyncDot('ok');
+  applyTheme(); WinterBg.start(); bindOverlays(); load(); dailyBackup(); render(); setSyncDot('ok');
   setTimeout(bgPull,800);
   setInterval(bgPull,2*60*1000);
   setInterval(function(){ if(!document.hidden&&!document.querySelector('.ov.open')&&!_trayCard) render(); },5*60*1000);

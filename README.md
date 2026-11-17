@@ -1,4 +1,61 @@
-# Tyler Actions v6.1
+# Tyler Actions v6.2
+
+v6.2 adds the hourly winter background behind the main pane. Tasks, sync, layout and every screen from v6.1 work as before.
+
+## What's new in v6.2
+
+### Winter background
+
+- The 24 WebP images sit in a `backgrounds` folder next to `index.html`, named `winter-00.webp` to `winter-23.webp`.
+- The app picks the image for the current hour in UK time (Europe/London, so GMT and BST are both handled) whatever time zone the device is set to.
+- Images are shown as supplied: full opacity, `cover`, anchored centre bottom so the railing stays along the bottom edge. No overlay, blur or filter is added.
+- The picture fills the main pane on every screen (board, People, Done, Review, Settings). The sidebar is untouched. On the phone it stops at the top of the bottom bar.
+- The right image shows on launch with no fade. The next hour's image is fetched in advance and fades in over 650ms on the hour. With "reduce motion" switched on in the device settings it swaps with no fade.
+- The time is rechecked when the window regains focus, becomes visible or comes back from sleep, and at least once a minute while open. Nothing runs while the app is hidden.
+- If an image fails to load the current one stays. If nothing has loaded yet the pane is plain pale grey (#F6F7F8). Failed loads retry after 1, 2, 4 and 8 minutes, then every 15.
+- The background takes no clicks and doesn't change the size or scrolling of anything. Column and card positions are identical to v6.1.
+
+### Two small things that changed with it
+
+- The top bar on the laptop (the strip holding the add box) is now transparent so the picture runs to the top of the pane. It was flat grey.
+- Small pale-grey labels that sit straight on the picture (column counts, empty day names, "Who owes you what?" style subtitles) now use the app's existing darker grey. Over the railing the pale grey measured 1.65:1 contrast, which was too faint. They now measure 4.2:1 or better at the worst spot. Text inside cards is unchanged.
+
+### Dark mode
+
+Nothing changes colour at night. The images are pale at every hour, so the light interface is used all day.
+
+The app's existing manual Dark mode (More, Dark mode) is still there and shows its own dark background with no picture, because pale images behind light text would be unreadable. If the device is set to dark and the app theme has never been chosen, the app follows the device and you won't see the picture until you pick Light mode.
+
+## Install
+
+1. In the current app: Settings, Back up now.
+2. In the GitHub repo choose Add file, Upload files, then drag in `index.html` and the whole `backgrounds` folder together. GitHub keeps the folder. Leave `sw.js` where it is.
+3. Reload on each device. Settings should say v6.2.
+
+If `index.html` goes up without the folder the app still works and shows plain pale grey.
+
+Size: the folder is 3.8 MB in total. Each image is 130 to 240 KB and only the current and next hour are fetched. The images are not stored for offline use, so with no connection and nothing cached the pane is pale grey.
+
+## Tested
+
+Headless Chromium with a faked clock, seeded data and mocked Supabase. 145 checks passed with no page errors.
+
+- Hour selection: every half hour of 2026 against the UK time zone database, with the browser set to Tokyo time. Includes both clock changes (01:00 skipped in March, 01:00 repeated in October).
+- On the hour: 10:59:59 to 11:00, crossfade measured mid-way (old image fully visible underneath, new one fading in), old layer cleared after, three hours in a row.
+- Midnight: 23:59:59 to 00:00, preload is `winter-00`.
+- Sleep: clock jumped 5 hours with the lid closed; clock moved with no timer firing then window focus; hidden then visible; page restored from the back/forward cache.
+- Loading: slow image held back (current stays, no blank, no duplicate request), failed image at the hour (current stays, retries back off, recovers), every image failing (pale grey, board still works).
+- Reduced motion, start/stop cleanup of timers and listeners, locked device (nothing fetched until unlocked).
+- Layout: positions and sizes of the sidebar, top bar, columns, headings and cards compared with v6.1 at 1920, 1440, 1280, 1000 and 390 wide on four screens. No differences.
+- Still working: quick add, tick done, expand a card, drag between columns, People, chase sheet, quick-add preview above the board. Cards solid white, sidebar black, yellow unchanged.
+- Readability: contrast of all text on the picture measured against the darkest pixel behind it at 00, 08, 10, 12, 16 and 17 hours.
+
+Not tested: the live GitHub Pages site, a physical phone or the installed Windows app, a real sleep and wake, and Safari or Firefox. The full v6.1 suite of 118 checks was not re-run, only the smoke test above.
+
+---
+
+# v6.1 notes
+
 
 v6.1 adds the whole Maxa team and a chaser email for a single action. Everything from v6.0 is unchanged.
 
