@@ -1,4 +1,28 @@
-# Tyler Actions v6.2
+# Tyler Actions v6.2.1
+
+v6.2.1 softens the winter background from 28% to about 20% strength. Only `index.html` changed. The image files are the same.
+
+## What's new in v6.2.1
+
+- A uniform wash, `rgba(246, 247, 248, 0.286)`, sits above both image layers and below every card, label and control. It takes no clicks.
+- The images already carry the 28% treatment, so the wash leaves about 20% (28 x 0.714). Measured on screen against the supplied midday image: 20.3%.
+- No opacity is applied to the app or its content. Cards are still pure white.
+- Hourly switching and the 650ms crossfade run underneath the wash as before.
+- Text on the picture is a little easier to read as a result: the faintest grey label now measures 5.1:1 at its worst spot (4.2:1 in v6.2).
+
+## Install
+
+Upload this `index.html` to the GitHub repo in place of the current one. The `backgrounds` folder has to be in the repo too, at `backgrounds/winter-00.webp` to `backgrounds/winter-23.webp`. Settings should say v6.2.1 after a reload.
+
+## Tested
+
+155 checks passed in headless Chromium: the 145 from v6.2 re-run, plus overlay colour, stacking order, click-through, card colour, a pixel comparison of the rendered background against the supplied image with the wash applied, and the crossfade under the overlay.
+
+Not tested: the live GitHub Pages site, a physical phone or the installed Windows app.
+
+---
+
+# v6.2 notes
 
 v6.2 adds the hourly winter background behind the main pane. Tasks, sync, layout and every screen from v6.1 work as before.
 
