@@ -487,18 +487,222 @@ body.dnd .grp{min-height:36px}
 #ch-subj{margin-bottom:8px;font-weight:600}
 .ch-grid .btn.pri{grid-column:1/-1}
 
-/* v6.2 winter background: one hourly image behind the main pane. Sidebar, cards and dark mode untouched. */
+/* ── v6.3 winter day/night theme ──
+   Colours come from WinterBg (head script) as --wd-* variables, once a minute.
+   Text tokens are resolved per surface so they stay readable through dawn and dusk. */
+:root{--t1:var(--wd-t1-c,#131516);--t2:var(--wd-t2-c,#4A4E52);--t3:var(--wd-t3-c,#4E5B68);--line2:var(--wd-l2-c,#CFCFCA);--red:var(--wd-red-c,#D92D20);--amber:var(--wd-amb-c,#8F5A00);--green:var(--wd-grn-c,#15803D);--star:var(--wd-star-c,#826C0F)}
+/* card-coloured surfaces */
+:where(.search-bar input,.bnav,.pp,.card,.pcard,.fl,.tile,.bars,.list-box,.setting,.sheet,.quiet-line,.c-quick,.qa,.qa-pop){--t1:var(--wd-t1-k,#131516);--t2:var(--wd-t2-k,#4A4E52);--t3:var(--wd-t3-k,#4E5B68);--line2:var(--wd-l2-k,#CFCFCA);--red:var(--wd-red-k,#D92D20);--amber:var(--wd-amb-k,#8F5A00);--green:var(--wd-grn-k,#15803D);--star:var(--wd-star-k,#826C0F);color:var(--t1);text-shadow:none;-webkit-text-stroke:0}
+/* canvas-coloured surfaces, which also appear inside cards and sheets */
+:where(.c-notes,.chip:not(.ghost),.bar,.btn,.field,.cap-hint code,.next-chase select,.sort-card,.c-quick button:hover){--t1:var(--wd-t1-c,#131516);--t2:var(--wd-t2-c,#4A4E52);--t3:var(--wd-t3-c,#4E5B68);--line2:var(--wd-l2-c,#CFCFCA);--red:var(--wd-red-c,#D92D20);--amber:var(--wd-amb-c,#8F5A00);--green:var(--wd-grn-c,#15803D);--star:var(--wd-star-c,#826C0F);color:var(--t1);text-shadow:none;-webkit-text-stroke:0}
+/* pale-yellow panels */
+:where(.wrapb,.banner,.pchip,.morning,[data-drop].drop-on){--t1:var(--wd-t1-y,#131516);--t2:var(--wd-t2-y,#4A4E52);--t3:var(--wd-t3-y,#4E5B68);--line2:var(--wd-l2-y,#CFCFCA);--red:var(--wd-red-y,#D92D20);--amber:var(--wd-amb-y,#8F5A00);--green:var(--wd-grn-y,#15803D);--star:var(--wd-star-y,#826C0F);color:var(--t1);text-shadow:none;-webkit-text-stroke:0}
+:where(.pp.red){--red:var(--wd-red-t,#D92D20)}
+:where(.pp.ok,.chip.g,.calm .ic){--green:var(--wd-grn-t,#15803D)}
+/* buttons otherwise inherit their colour from the surface behind them */
+button:where(.search-bar input,.bnav,.pp,.card,.pcard,.fl,.tile,.bars,.list-box,.setting,.sheet,.quiet-line,.c-quick,.qa,.qa-pop,.chip:not(.ghost),.btn,.field,.sort-card,.wrapb,.banner,.pchip,.morning){color:var(--t1)}
+.card.sel{outline-color:var(--t1)}
+.qa:focus-within{border-color:var(--t1)}
+.c-meta .star,.pin-btn,.c-quick button.on{color:var(--star)}
+.chip.sel,.start-go{background:var(--wd-sel-bg,#131516);border-color:var(--wd-sel-bg,#131516);color:var(--wd-sel-fg,#fff)}
+.toast{background:var(--wd-toast,#131516)}
+.bn-badge.red{color:var(--wd-onred,#fff)}
+.bn-badge.muted{color:var(--wd-onl2,#131516)}
+.sw-done,.tick:active{color:var(--wd-ongrn,#fff)}
+.sw-tray button:nth-child(2){background:#996000}
+.main :where(input,textarea)::placeholder,.ov :where(input,textarea)::placeholder{color:var(--t3);opacity:1}
+/* Labels that sit straight on the scenery get a two-pixel outline in the canvas colour, painted behind the
+   letters, so the surface right behind them is the canvas they were chosen against. It is invisible on flat
+   canvas and adds no layout. Opaque surfaces switch it off. */
+html.wd-ps .content,html.wd-ps .search-bar{-webkit-text-stroke:4px var(--bg);paint-order:stroke fill}
+html:not(.wd-ps) .content,html:not(.wd-ps) .search-bar{text-shadow:1px 0 0 var(--bg),-1px 0 0 var(--bg),0 1px 0 var(--bg),0 -1px 0 var(--bg),1px 1px 0 var(--bg),-1px 1px 0 var(--bg),1px -1px 0 var(--bg),-1px -1px 0 var(--bg)}
+.content svg,.search-bar svg{paint-order:normal}
+:where(.btn-focus,.chip.y,.chip.sel,.chip.g,.brief,.av,.start-go,.bn-badge){text-shadow:none;-webkit-text-stroke:0}
+/* scenery: behind everything in the main pane, never in the way */
 .main{position:relative;isolation:isolate}
-.wbg{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:#F6F7F8;contain:strict}
-.wbg i{position:absolute;inset:0;opacity:0;background-size:cover;background-position:center bottom;background-repeat:no-repeat}
-.wbg::after{content:'';position:absolute;inset:0;z-index:3;pointer-events:none;background:rgba(246,247,248,0.4643)}
-body.dark .wbg{display:none}
+.wbg{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--bg);contain:strict}
+.wbg-s{position:absolute;inset:0;opacity:0;transition:opacity .6s ease}
+.wbg-s.on{opacity:1}
+.wbg-s i{position:absolute;inset:0;opacity:0;visibility:hidden;background-size:cover;background-position:center bottom;background-repeat:no-repeat}
+/* 15% graduated wash in the current canvas colour: the picture contributes 1.2% at the top, 3.3% at 37%, 9.75% at 66%, 15% at the bottom */
+.wbg::after{content:'';position:absolute;inset:0;z-index:3;pointer-events:none;background:linear-gradient(to bottom,rgba(var(--wd-rgb,246,247,248),.988) 0%,rgba(var(--wd-rgb,246,247,248),.967) 37%,rgba(var(--wd-rgb,246,247,248),.9025) 66%,rgba(var(--wd-rgb,246,247,248),.85) 100%)}
 @media(max-width:899px){.wbg{bottom:calc(var(--safe-bottom) + 57px)}}
-@media(min-width:900px){body:not(.dark) .topbar{background:transparent}}
-@media(prefers-reduced-motion:reduce){.wbg i{transition:none!important}}
-/* small grey labels that sit straight on the picture use the existing secondary grey so they stay readable low down */
-body:not(.dark) .main :is(.col-h span,.grp-h i,.grp.empty .grp-h,.col-empty,.vh p,.sec:not(.must) h2,.sec h2 i,.hint,.calm,.quiet-links,.search-bar .chip.ghost){color:var(--t2)}
+@media(min-width:900px){.topbar{background:transparent}}
+@media(prefers-reduced-motion:reduce){.wbg-s{transition:none}}
 </style>
+<script>
+/* ══════════════════════════════════════════
+   WINTER DAY/NIGHT THEME (v6.3)
+   Six full-colour scenes blended by Europe/London time, with a graduated wash
+   in the current canvas colour. Schedule and palette maths are the approved
+   reference (winter-background.js); the rest maps them onto this app.
+   Lives in the head so the right colours are set before first paint.
+══════════════════════════════════════════ */
+var WinterBg=(function(){
+  var DIR='assets/', TZ='Europe/London', PAD=150, TICK=60000;
+  var FRAMES=[[0,'night'],[6,'night'],[8,'dawn'],[10,'morning'],[12,'noon'],[15,'sunset'],[16,'twilight'],[18,'night'],[24,'night']];
+  var LIGHT=[[0,0],[6,0],[7,.08],[8,.52],[10,1],[14,1],[15,.78],[16,.3],[18,0],[24,0]];
+
+  /* ── reference maths, unchanged ── */
+  function normalHour(h){ return ((Number(h)%24)+24)%24; }
+  function frameAt(hour){ var h=normalHour(hour), i=0; while(i<FRAMES.length-2&&h>=FRAMES[i+1][0]) i++; var a=FRAMES[i], b=FRAMES[i+1]; return {a:a[1],b:b[1],mix:(h-a[0])/(b[0]-a[0]),i:i}; }
+  function mixColor(a,b,t){ return a.map(function(c,i){ return Math.round(c*(1-t)+b[i]*t); }); }
+  function luminance(rgb){ var w=[.2126,.7152,.0722]; return rgb.map(function(c){ c/=255; return c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4); }).reduce(function(s,c,i){ return s+c*w[i]; },0); }
+  function contrast(a,b){ var x=luminance(a), y=luminance(b); return (Math.max(x,y)+.05)/(Math.min(x,y)+.05); }
+  function inkOn(bg){ var dark=[24,31,38], light=[238,242,246], ink=contrast(bg,dark)>=contrast(bg,light)?dark:light; if(contrast(bg,ink)<4.5){ var k=[0,0,0], w=[255,255,255]; ink=contrast(bg,k)>contrast(bg,w)?k:w; } return ink; }
+  function mutedOn(bg){ var c=[[78,91,104],[166,180,193]].sort(function(a,b){ return contrast(bg,b)-contrast(bg,a); })[0]; return contrast(bg,c)>=4.5?c:inkOn(bg); }
+  function paletteAt(hour){
+    var h=normalHour(hour), i=0; while(i<LIGHT.length-2&&h>=LIGHT[i+1][0]) i++;
+    var a=LIGHT[i][0], x=LIGHT[i][1], b=LIGHT[i+1][0], y=LIGHT[i+1][1], t=(h-a)/(b-a); t=t*t*(3-2*t);
+    var day=x+(y-x)*t, canvas=mixColor([21,28,36],[246,247,248],day), card=mixColor([37,47,59],[255,255,255],day), border=mixColor([66,81,96],[215,221,225],day);
+    return {day:day,canvas:canvas,card:card,border:border,ink:inkOn(card),heading:inkOn(canvas),muted:mutedOn(card),headingMuted:mutedOn(canvas)};
+  }
+
+  /* ── this app's extra tokens, chosen the same way: by contrast against the surface they sit on ── */
+  function softOn(bg,cands,need){ var c=cands.slice().sort(function(a,b){ return contrast(bg,b)-contrast(bg,a); })[0]; return contrast(bg,c)>=need?c:inkOn(bg); }
+  function accentOn(bg,dark,light,need){
+    need=need||4.5;
+    var c=contrast(bg,dark)>=contrast(bg,light)?dark:light; if(contrast(bg,c)>=need) return c;
+    var to=inkOn(bg); for(var t=.05;t<1;t+=.05){ var m=mixColor(c,to,t); if(contrast(bg,m)>=need) return m; } return to;
+  }
+  function rgb(c){ return 'rgb('+c.join(',')+')'; }
+  var SECOND=[[74,78,82],[180,184,189]], MUTED=[[78,91,104],[166,180,193]];
+  var RED=[[217,45,32],[240,96,90]], AMB=[[168,106,0],[233,169,58]], GRN=[[21,128,61],[74,222,128]], STAR=[[201,159,0],[255,205,0]];
+  function theme(hour){
+    var p=paletteAt(hour), d=p.day, v={};
+    var ylt=mixColor([43,38,16],[255,247,209],d), rlt=mixColor([58,26,24],[253,236,234],d), alt=mixColor([51,41,15],[255,243,214],d), glt=mixColor([18,41,26],[231,245,236],d);
+    v['--bg']=rgb(p.canvas); v['--wd-rgb']=p.canvas.join(','); v['--card']=rgb(p.card); v['--line']=rgb(p.border);
+    v['--y-lt']=rgb(ylt); v['--red-lt']=rgb(rlt); v['--amber-lt']=rgb(alt); v['--green-lt']=rgb(glt);
+    function ctx(k,bg,ink,need){
+      v['--wd-t1-'+k]=rgb(ink); v['--wd-t2-'+k]=rgb(softOn(bg,SECOND,need)); v['--wd-t3-'+k]=rgb(softOn(bg,MUTED,need)); v['--wd-l2-'+k]=rgb(mixColor(bg,ink,.2));
+      v['--wd-red-'+k]=rgb(accentOn(bg,RED[0],RED[1],need)); v['--wd-amb-'+k]=rgb(accentOn(bg,AMB[0],AMB[1],need)); v['--wd-grn-'+k]=rgb(accentOn(bg,GRN[0],GRN[1],need)); v['--wd-star-'+k]=rgb(accentOn(bg,STAR[0],STAR[1],need));
+    }
+    /* Flat surfaces use the reference's 4.5:1 rule, so muted text on cards is exactly paletteAt().muted.
+       Text straight on the canvas has scenery behind it, so soft greys and accents must clear 5:1 there
+       or give way to the heading colour. */
+    ctx('c',p.canvas,p.heading,5);
+    ctx('k',p.card,p.ink,4.5);
+    ctx('y',ylt,inkOn(ylt),4.5);
+    v['--wd-red-t']=rgb(accentOn(rlt,RED[0],RED[1])); v['--wd-grn-t']=rgb(accentOn(glt,GRN[0],GRN[1]));
+    v['--wd-onred']=rgb(inkOn(accentOn(p.card,RED[0],RED[1]))); v['--wd-ongrn']=rgb(inkOn(accentOn(p.card,GRN[0],GRN[1]))); v['--wd-onl2']=rgb(inkOn(mixColor(p.card,p.ink,.2)));
+    var night=luminance(p.heading)>.5;
+    v['--wd-sel-bg']=night?'#FFCD00':'#131516'; v['--wd-sel-fg']=night?'#131516':'#fff'; v['--wd-toast']=night?'#2A2E33':'#131516';
+    return {vars:v,scheme:night?'dark':'light',day:d,palette:p};
+  }
+
+  /* ── clock ── */
+  var fmt=null;
+  function londonTime(d){
+    d=d||new Date();
+    try{
+      if(!fmt) fmt=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+      var h=-1, m=-1; fmt.formatToParts(d).forEach(function(x){ if(x.type==='hour') h=parseInt(x.value,10); if(x.type==='minute') m=parseInt(x.value,10); });
+      if(h===24) h=0;
+      if(h>=0&&h<=23&&m>=0&&m<=59) return h*60+m;
+    }catch(e){}
+    return d.getHours()*60+d.getMinutes();
+  }
+
+  /* ── state ── */
+  var applied={}, scheme='', minute=-1, running=false, timer=0, box=null, scene=null, layers={}, shown=null;
+  var cache={}, fails=0, nextTry=0, lastForce=0;
+
+  function paint(min){
+    var t=theme(min/60), st=document.documentElement.style;
+    Object.keys(t.vars).forEach(function(k){ if(applied[k]!==t.vars[k]){ st.setProperty(k,t.vars[k]); applied[k]=t.vars[k]; } });
+    if(scheme!==t.scheme){ st.colorScheme=t.scheme; scheme=t.scheme; }
+  }
+
+  function load(name){
+    if(cache[name]) return cache[name].p;
+    var im=new Image(), u=DIR+name+'.webp';
+    var p=new Promise(function(res,rej){
+      im.onload=function(){ var ok=function(){ cache[name].ready=true; res(u); }; if(im.decode) im.decode().then(ok,ok); else ok(); };
+      im.onerror=function(){ delete cache[name]; rej(new Error('scene '+name)); };
+    });
+    cache[name]={p:p,im:im,ready:false};
+    im.src=u;
+    return p;
+  }
+  function layer(name){
+    if(layers[name]) return layers[name];
+    var el=document.createElement('i'); el.setAttribute('data-scene',name); el.style.backgroundImage='url("'+DIR+name+'.webp")';
+    scene.appendChild(el); layers[name]=el; return el;
+  }
+  function draw(f){
+    var a=f.a, b=f.b===f.a||f.mix<=0?'':f.b, mix=Math.round(f.mix*10000)/10000;
+    var A=layer(a), B=b?layer(b):null;
+    A.style.zIndex='1'; A.style.opacity='1'; A.style.visibility='visible';
+    if(B){ B.style.zIndex='2'; B.style.opacity=String(mix); B.style.visibility='visible'; }
+    Object.keys(layers).forEach(function(n){ if(n!==a&&n!==b){ layers[n].style.visibility='hidden'; layers[n].style.opacity='0'; } });
+    shown={a:a,b:b,mix:b?mix:0};
+    if(!scene.classList.contains('on')){ void scene.offsetWidth; scene.classList.add('on'); }
+  }
+  /* Show the pair for this minute once both are decoded; until then whatever is showing stays. */
+  function sceneFor(min){
+    if(!scene) return;
+    var f=frameAt(min/60), need=f.b===f.a||f.mix<=0?[f.a]:[f.a,f.b];
+    var ready=need.every(function(n){ return cache[n]&&cache[n].ready; });
+    if(ready){ draw(f); ahead(f); return; }
+    if(Date.now()<nextTry) return;
+    Promise.all(need.map(load)).then(function(){
+      fails=0; nextTry=0;
+      if(running) sceneFor(minute);
+    },function(){
+      fails++; nextTry=Date.now()+Math.min(TICK*Math.pow(2,fails-1),15*60000);
+    });
+  }
+  /* fetch the scenes needed next in advance; each of the six is loaded once and kept */
+  function ahead(f){
+    [f.b,FRAMES[Math.min(f.i+2,FRAMES.length-1)][1]].forEach(function(n){ if(!cache[n]) load(n).catch(function(){}); });
+  }
+
+  function check(force){
+    var now=londonTime();
+    if(force===true&&fails&&Date.now()-lastForce>30000){ lastForce=Date.now(); nextTry=0; }
+    if(now!==minute){ minute=now; paint(now); }
+    if(running){ sceneFor(now); schedule(); }
+  }
+  function schedule(){
+    clearTimeout(timer); timer=0;
+    if(!running||document.hidden) return;
+    timer=setTimeout(check,TICK-(Date.now()%TICK)+PAD);
+  }
+  function onVis(){ if(document.hidden){ clearTimeout(timer); timer=0; } else check(true); }
+  function onWake(){ if(!document.hidden) check(true); }
+  function onHide(){ clearTimeout(timer); timer=0; }
+
+  function start(){
+    if(running) return;
+    box=document.getElementById('wbg'); if(!box) return;
+    scene=document.createElement('div'); scene.className='wbg-s'; box.appendChild(scene);
+    running=true;
+    document.addEventListener('visibilitychange',onVis);
+    window.addEventListener('focus',onWake);
+    window.addEventListener('pageshow',onWake);
+    window.addEventListener('online',onWake);
+    window.addEventListener('pagehide',onHide);
+    check();
+  }
+  function stop(){
+    if(!running) return;
+    running=false; clearTimeout(timer); timer=0;
+    document.removeEventListener('visibilitychange',onVis);
+    window.removeEventListener('focus',onWake);
+    window.removeEventListener('pageshow',onWake);
+    window.removeEventListener('online',onWake);
+    window.removeEventListener('pagehide',onHide);
+    if(scene&&scene.parentNode) scene.parentNode.removeChild(scene);
+    scene=null; layers={}; shown=null; cache={}; fails=0; nextTry=0;
+  }
+
+  /* the label outline needs paint-order on HTML text: Safari, Firefox and Chromium 123 or later */
+  try{ var cv=/(?:Chrome|Chromium|CriOS)\/(\d+)/.exec(navigator.userAgent); if(!cv||+cv[1]>=123) document.documentElement.classList.add('wd-ps'); }catch(e){}
+  minute=londonTime(); paint(minute);      /* colours are right before anything is drawn */
+  return {start:start,stop:stop,paletteAt:paletteAt,frameAt:frameAt,theme:theme,contrast:contrast,londonTime:londonTime,
+    state:function(){ return {running:running,timer:!!timer,minute:minute,scheme:scheme,shown:shown,fails:fails,cached:Object.keys(cache).filter(function(n){ return cache[n].ready; }),layers:Object.keys(layers)}; }};
+})();
+</script>
 </head>
 <body>
 
@@ -537,7 +741,7 @@ body:not(.dark) .main :is(.col-h span,.grp-h i,.grp.empty .grp-h,.col-empty,.vh 
   </aside>
 
   <div class="main">
-    <div class="wbg" id="wbg" aria-hidden="true"><i></i><i></i></div>
+    <div class="wbg" id="wbg" aria-hidden="true"></div>
     <header class="topbar">
       <div class="qa" id="qa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><textarea id="qa-text" rows="1" placeholder="Add an action. Type or dictate, then Enter" autocomplete="off" aria-label="Add an action"></textarea><kbd>N</kbd><div class="qa-pop" id="qa-pop"></div></div>
       <div class="tb-brand"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAEaklEQVR42u2WXWgUVxTH/3NndtbZj+yyJKuLDWlSatdYEIQoggaKjSAteVJ8UISWWgkIFgI+tCCal/ZJkL70RSghxj5oC6EQ6xdUalsogYUmXYjENeZj3LSYuNmduB9z/n3Y7CabtXmsL3seZrhzuOf8zrnc/xlNRIjXaAqv2RoADYAGgPFfDhEBSWiaBqVqOUlCRNaqUAqaplV95Jq0aJpW9a3urnjKz41CJCJ1SSsJlVIQEei6Xgfsum4NyEZfGYSApleC1gOQrCZOpVKwbRuRSATxeLwKp5RCoVBAIpHA8+fPEQ6HsXv3bliWBZJY+HsBS4tLME0PRIhgMIhoNLpWe/EfgAKY0fJbRCgidEslkuTU1BR7enqo6zpN06RSivv27ePDhw/pui4TiQTj8Tg1TWMgEKDH9DAUCvHy5cskyXOfnSMAmqaHSmk0TZM977/HvybTdPN/spQaoJSyFHEpIjQqlWtKYXFxEUeOHMHy8jKuXbuGHTt2YHZ2Fv39/bh06RJu3bqFixcvwnEcTE9PIxwO49mzZxgcHEQgEAAAFPIFNDc34+rVb0FoePxoHNd/+BnOzBBU8Xu47cOA7i9Xv9pWFgsFkuSVK1eoaRonJye50UqrHTpx4gSbmpo4PDzMZDJZ/V6xvr4+drz19uqqHJeZH8mxEJn5jUJS3CIrnS8DFIskyZMnT7Kzs7O8tVDghQsXuHdvF3t7e9nb28uRkRE+ffqUhw4doq7rBMCmpiYePHiQd+7cIUmeOfMp295sZ3FlgYXEB3T++JDur+CT37/g1998R4rLUqlUBVDrb8b27dsxPz8Px3Hg8XjQ3NyMnTs7EYlEMDIyAtu20drairt378Ket3H/3n0MDAwgm83i6NGjyGaz8Hq3AFKEsaUFnne+gpUfhYp/iVOfT2Aq+QugqZorDBGptnF8fJyGYfDYsWO0bbva1v7+fvr9fqbTaY6OjvLGjRs1bR8cHCQAptNpnj9/nm1tbcxkXvDFcp4zj+/xk48/IgAmk8nqcdYcwXqImzdvMhwO0+fzsb2jnX6/n7quc2hoiCR59uxZAmA0GuWuXbvY0dFBADx+/DhFhKdPnyYARiIRhkJBeswgfT4frw8P1yUXEdbogAih6wqLiy9w+/ZPmJubRUtLCw4fPoytW7dWdSCVSuHBgweYmZmBZVno6upCd3c3AGBsbAwTExMwDAMigmDQj/37DyAabYErgNLWq2GdEgrcogPDNAF4AQCO48BxHGQyGcRiMSwtLcE0Tfh8PliWhWw2i5WVFViWhVwuB6/XC9M0ARJCQuk6fJaFUj4D3dABzbumhnWzQArQi3MovSwB3igS43OYfjKFQCCIbdu2IRaLIZlMIhAIwDAM2LaNUCiEfD6PPXv24NGjSWSzOShN4WX+JXK5HGKxN9B94F1ohXnAVYDZWtaBV3dAq8wIgMArZL1uKK3X/o3rSiCyNu4mR1DrXNu1OURl6m0Gt3EKbgLQ+CNqADQAGgD/r/0L0IcSlKgYYr0AAAAASUVORK5CYII=" alt=""><span class="tb-name">Tyler Actions</span><span class="sync-dot" id="sync-dot" title="Sync"></span></div>
@@ -1430,9 +1634,9 @@ function vSettings(){
   var h='<div class="vh"><h1>Settings</h1></div>';
   h+='<div class="setting"><h3>Sync</h3><p>Supabase · '+(last?'last synced '+ago(last)+' ago':'not synced yet')+(Object.keys(_dirty).length?' · '+Object.keys(_dirty).length+' change(s) waiting to upload':'')+'</p><div class="row"><button class="btn pri grow" data-a="syncNow">Sync now</button><button class="btn" data-a="pull">Pull only</button></div></div>';
   h+='<div class="setting"><h3>Backups</h3><p>'+(b.length?b.length+' on this device · latest '+ago(b[0].b.ts)+' ago. A daily backup is taken automatically; the pre-redesign snapshot is never overwritten.':'No backups yet.')+'</p><div class="row"><button class="btn" data-a="backup">Back up now</button><button class="btn" data-a="restoreList">Restore…</button></div></div>';
-  h+='<div class="setting"><h3>Appearance</h3><p>Follows your device unless you choose.</p><div class="row">'+['system','light','dark'].map(function(m){ return '<button class="chip '+(theme===m?'sel':'')+'" data-a="theme" data-v="'+m+'">'+m.charAt(0).toUpperCase()+m.slice(1)+'</button>'; }).join('')+'</div></div>';
+  h+='<div class="setting"><h3>Appearance</h3><p>Follows the time of day in the UK: light in daylight, dark at night.</p></div>';
   h+='<div class="setting"><h3>People</h3><p>'+members.length+' people saved. Manage names, emails and type from the People screen.</p><button class="btn" data-a="go" data-v="people">Open People</button></div>';
-  h+='<div class="setting"><h3>App</h3><p>Tyler Actions v6.2.2 · everything on one board.</p><button class="btn" data-a="reload">Reload app</button></div>';
+  h+='<div class="setting"><h3>App</h3><p>Tyler Actions v6.3 · everything on one board.</p><button class="btn" data-a="reload">Reload app</button></div>';
   return h;
 }
 
@@ -2210,14 +2414,11 @@ function openMore(){
   openSheet('<button class="menu-item" data-a="search">Search</button>'
     +'<button class="menu-item" data-a="go" data-v="done">Done<small>finished and dropped</small></button>'
     +'<button class="menu-item" data-a="go" data-v="review">Review<small>stale and late</small></button>'
-    +'<button class="menu-item" data-a="theme" data-v="'+(dark?'light':'dark')+'">'+(dark?'Light mode':'Dark mode')+'</button>'
     +'<button class="menu-item" data-a="go" data-v="settings">Settings<small>sync and backups</small></button>');
 }
 function applyTheme(){
-  var m=lsGet('maxa_theme_v1')||'system';
-  var dark=m==='dark'||(m==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);
-  document.body.classList.toggle('dark',dark);
-  document.documentElement.style.background=dark?'#0E1012':'#F3F3F1';
+  /* v6.3: appearance follows UK time of day (WinterBg). The old manual dark class is never used. */
+  document.body.classList.remove('dark');
 }
 
 /* ══════════════════════════════════════════
@@ -2396,121 +2597,6 @@ function resetCard(card){ if(!card) return; var i=card.querySelector('.c-inner')
 /* ══════════════════════════════════════════
    LOCK (unchanged from v4) + INIT
 ══════════════════════════════════════════ */
-/* ══════════════════════════════════════════
-   WINTER BACKGROUND (v6.2)
-   24 pre-faded images, one per Europe/London hour, shown at full opacity.
-══════════════════════════════════════════ */
-var WinterBg=(function(){
-  var DIR='backgrounds/', TZ='Europe/London', FADE=650, PAD=300, TICK=60000;
-  var fmt=null, layers=[], cur=-1, shown=-1, want=-1, token=0;
-  var timer=0, fadeT=0, pendingOld=null, running=false, cache={}, fails=0, nextTry=0, lastForce=0;
-
-  function londonHour(d){
-    try{
-      if(!fmt) fmt=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',hourCycle:'h23'});
-      var h=parseInt(fmt.format(d||new Date()),10);
-      if(h>=0&&h<=23) return h;
-      if(h===24) return 0;
-    }catch(e){}
-    return (d||new Date()).getHours();
-  }
-  /* UK time is always a whole number of hours from UTC, so the next hour starts on a UTC hour. */
-  function msToNext(){ return 3600000-(Date.now()%3600000); }
-  function nextHour(){ return londonHour(new Date(Date.now()+msToNext()+1000)); }
-  function url(h){ return DIR+'winter-'+(h<10?'0':'')+h+'.webp'; }
-
-  function load(h){
-    if(cache[h]) return cache[h].p;
-    var im=new Image(), u=url(h);
-    var p=new Promise(function(res,rej){
-      im.onload=function(){
-        var ok=function(){ res(u); };
-        if(im.decode) im.decode().then(ok,ok); else ok();
-      };
-      im.onerror=function(){ delete cache[h]; rej(new Error('background '+h)); };
-    });
-    cache[h]={p:p,im:im};
-    im.src=u;
-    return p;
-  }
-  function prune(){ var keep=nextHour(); Object.keys(cache).forEach(function(k){ if(+k!==shown&&+k!==want&&+k!==keep) delete cache[k]; }); }
-
-  function settle(){
-    clearTimeout(fadeT); fadeT=0;
-    if(pendingOld){ pendingOld.style.transition='none'; pendingOld.style.opacity='0'; pendingOld.style.backgroundImage='none'; pendingOld=null; }
-    if(cur>=0){ layers[cur].style.transition='none'; layers[cur].style.opacity='1'; }
-  }
-  function show(h,u){
-    if(!layers.length) return;
-    settle();
-    var first=cur<0, old=first?null:layers[cur], n=first?0:1-cur, el=layers[n];
-    var still=first||(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    el.style.transition='none'; el.style.opacity='0'; el.style.zIndex='2';
-    el.style.backgroundImage='url("'+u+'")';
-    if(old) old.style.zIndex='1';
-    void el.offsetWidth;
-    if(!still) el.style.transition='opacity '+FADE+'ms ease';
-    el.style.opacity='1';
-    cur=n; shown=h;
-    /* the old image stays fully visible underneath until the new one has finished arriving */
-    if(old){ pendingOld=old; fadeT=setTimeout(settle,(still?0:FADE)+120); }
-  }
-
-  function check(force){
-    if(!running) return;
-    var h=londonHour(), now=Date.now();
-    if(force&&fails&&now-lastForce>30000){ lastForce=now; nextTry=0; }
-    if(h!==shown&&h!==want&&now>=nextTry){
-      want=h; var my=++token;
-      load(h).then(function(u){
-        if(my!==token||!running) return;
-        fails=0; nextTry=0; want=-1;
-        show(h,u); prune();
-        load(nextHour()).catch(function(){});
-      },function(){
-        if(my!==token) return;
-        want=-1; fails++;
-        nextTry=Date.now()+Math.min(TICK*Math.pow(2,fails-1),15*60000);
-      });
-    }
-    schedule();
-  }
-  function schedule(){
-    clearTimeout(timer); timer=0;
-    if(!running||document.hidden) return;
-    timer=setTimeout(check,Math.min(msToNext()+PAD,TICK));
-  }
-
-  function onVis(){ if(document.hidden){ clearTimeout(timer); timer=0; } else check(true); }
-  function onWake(){ check(true); }
-  function onHide(){ clearTimeout(timer); timer=0; }
-
-  function start(){
-    if(running) return;
-    var box=document.getElementById('wbg'); if(!box) return;
-    layers=[].slice.call(box.children);
-    if(layers.length<2) return;
-    running=true;
-    document.addEventListener('visibilitychange',onVis);
-    window.addEventListener('focus',onWake);
-    window.addEventListener('pageshow',onWake);
-    window.addEventListener('online',onWake);
-    window.addEventListener('pagehide',onHide);
-    check();
-  }
-  function stop(){
-    if(!running) return;
-    running=false; token++; want=-1;
-    clearTimeout(timer); timer=0; settle();
-    document.removeEventListener('visibilitychange',onVis);
-    window.removeEventListener('focus',onWake);
-    window.removeEventListener('pageshow',onWake);
-    window.removeEventListener('online',onWake);
-    window.removeEventListener('pagehide',onHide);
-  }
-  return {start:start,stop:stop,hour:londonHour,state:function(){ return {running:running,shown:shown,layer:cur,timer:!!timer,fails:fails,cached:Object.keys(cache).map(Number)}; }};
-})();
-
 var LOCK_HASH_KEY='maxa_lock_hash', LOCK_TRUSTED_KEY='maxa_lock_trusted', APP_PASSWORD='Maxa2026';
 async function hashPassword(p){ var buf=new TextEncoder().encode(p); var h=await crypto.subtle.digest('SHA-256',buf); return Array.from(new Uint8Array(h)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join(''); }
 async function initLock(){
