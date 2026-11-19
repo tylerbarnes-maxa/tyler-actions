@@ -487,6 +487,15 @@ body.dnd .grp{min-height:36px}
 #ch-subj{margin-bottom:8px;font-weight:600}
 .ch-grid .btn.pri{grid-column:1/-1}
 
+/* ── v6.4 re-order by dragging: a yellow line shows where the card will land ── */
+.card.ins-b{box-shadow:0 -3px 0 0 var(--y)}
+.card.ins-a{box-shadow:0 3px 0 0 var(--y)}
+/* ── v6.4 scrollbars on the board fade out unless the pointer is over that list ── */
+@property --sbc{syntax:'<color>';inherits:true;initial-value:transparent}
+.col-b,.content{--sbc:transparent;transition:--sbc .35s ease}
+.col:hover>.col-b,.content:hover{--sbc:var(--line2)}
+.col-b::-webkit-scrollbar-thumb,.content::-webkit-scrollbar-thumb{background:var(--sbc)}
+@media(prefers-reduced-motion:reduce){.col-b,.content{transition:none}}
 /* ── v6.3 winter day/night theme ──
    Colours come from WinterBg (head script) as --wd-* variables, once a minute.
    Text tokens are resolved per surface so they stay readable through dawn and dusk. */
@@ -1636,7 +1645,7 @@ function vSettings(){
   h+='<div class="setting"><h3>Backups</h3><p>'+(b.length?b.length+' on this device · latest '+ago(b[0].b.ts)+' ago. A daily backup is taken automatically; the pre-redesign snapshot is never overwritten.':'No backups yet.')+'</p><div class="row"><button class="btn" data-a="backup">Back up now</button><button class="btn" data-a="restoreList">Restore…</button></div></div>';
   h+='<div class="setting"><h3>Appearance</h3><p>Follows the time of day in the UK: light in daylight, dark at night.</p></div>';
   h+='<div class="setting"><h3>People</h3><p>'+members.length+' people saved. Manage names, emails and type from the People screen.</p><button class="btn" data-a="go" data-v="people">Open People</button></div>';
-  h+='<div class="setting"><h3>App</h3><p>Tyler Actions v6.3 · everything on one board.</p><button class="btn" data-a="reload">Reload app</button></div>';
+  h+='<div class="setting"><h3>App</h3><p>Tyler Actions v6.4 · everything on one board.</p><button class="btn" data-a="reload">Reload app</button></div>';
   return h;
 }
 
@@ -1670,11 +1679,46 @@ function boardRank(a,b){
   return ((b.focus?1:0)-(a.focus?1:0))||(lateHard(b)-lateHard(a))||((b.hard?1:0)-(a.hard?1:0))
     ||((a.due||'')>(b.due||'')?-1:(a.due||'')<(b.due||'')?1:0)||((a.created||0)-(b.created||0));
 }
+/* v6.4 manual order. t.ord is a position, t.ordZ the group it belongs to ('today', 'd:YYYY-MM-DD' or 'nodate').
+   Cards placed by hand come first in that order; anything not placed follows in the usual order. */
+function ordIn(t,z){ return t.ordZ===z&&typeof t.ord==='number'; }
+function byOrd(z,rest){
+  return function(a,b){
+    var ao=ordIn(a,z), bo=ordIn(b,z);
+    if(ao&&bo) return (a.ord-b.ord)||((a.created||0)-(b.created||0));
+    if(ao!==bo) return ao?-1:1;
+    return rest(a,b);
+  };
+}
+/* Today: pinned stay on top; then cards ordered on Today; then cards ordered on their own day before it arrived; then the rest */
+function todayRank(a,b){
+  var p=(b.focus?1:0)-(a.focus?1:0); if(p) return p;
+  function g(t){ return ordIn(t,'today')?0:(t.due&&ordIn(t,'d:'+t.due))?1:2; }
+  var ga=g(a), gb=g(b); if(ga!==gb) return ga-gb;
+  if(ga===0) return (a.ord-b.ord)||((a.created||0)-(b.created||0));
+  if(ga===1) return (a.due<b.due?-1:a.due>b.due?1:0)||(a.ord-b.ord);
+  return boardRank(a,b);
+}
+function canOrder(z){ return z==='today'||z==='nodate'||(!!z&&z.indexOf('d:')===0); }
+function zoneList(z){
+  var D=boardData();
+  return z==='today'?D.today:z==='nodate'?D.nodate:z.indexOf('d:')===0?(D.up[z.slice(2)]||[]):[];
+}
+/* put id before beforeId (or last) within its group and number the whole group */
+function reorder(id,z,beforeId){
+  if(!canOrder(z)) return false;
+  var cur=zoneList(z).map(function(t){ return t.id; }); if(cur.indexOf(id)<0) return false;
+  var next=cur.filter(function(x){ return x!==id; }), at=beforeId?next.indexOf(beforeId):-1;
+  if(at<0) next.push(id); else next.splice(at,0,id);
+  if(next.join('|')===cur.join('|')&&cur.every(function(x){ return ordIn(find(x),z); })) return false;
+  next.forEach(function(x,i){ var t=find(x); if(t&&(t.ord!==i+1||t.ordZ!==z)) mut(t,{ord:i+1,ordZ:z}); });
+  commit(); return true;
+}
 function agendaDays(n){ var out=[],d=today(); while(out.length<n){ d=addWorkingDays(d,1); out.push(d); } return out; }
 function nextChase(p){ var o='9999'; p.waiting.forEach(function(t){ if(t.due&&t.due<o) o=t.due; }); return o; }
 function boardData(){
   var mine=tasks.filter(isMine), ids={};
-  var td=mine.filter(onToday).sort(boardRank);
+  var td=mine.filter(onToday).sort(todayRank);
   td.forEach(function(t){ ids[t.id]=1; });
   var days=agendaDays(5), last=days[days.length-1], up={}, later=[], nodate=[];
   days.forEach(function(d){ up[d]=[]; });
@@ -1684,9 +1728,9 @@ function boardData(){
     if(t.due<=last) (up[t.due]||(up[t.due]=[])).push(t); else later.push(t);
   });
   tasks.forEach(function(t){ if(st(t)==='parked') nodate.push(t); });
-  Object.keys(up).forEach(function(d){ up[d].sort(function(a,b){ return ((b.hard?1:0)-(a.hard?1:0))||((a.created||0)-(b.created||0)); }); });
+  Object.keys(up).forEach(function(d){ up[d].sort(byOrd('d:'+d,function(a,b){ return ((b.hard?1:0)-(a.hard?1:0))||((a.created||0)-(b.created||0)); })); });
   later.sort(function(a,b){ return a.due<b.due?-1:a.due>b.due?1:0; });
-  nodate.sort(function(a,b){ return (b.created||0)-(a.created||0); });
+  nodate.sort(byOrd('nodate',function(a,b){ return (b.created||0)-(a.created||0); }));
   var P=people().filter(function(p){ return p.waiting.length; });
   P.sort(function(a,b){
     var ac=a.chase.length?0:1, bc=b.chase.length?0:1; if(ac!==bc) return ac-bc;
@@ -1853,7 +1897,14 @@ function applyDrop(id,z){
 }
 (function(){
   var c=document.getElementById('content'); if(!c) return;
-  function clearDrop(){ document.querySelectorAll('.drop-on').forEach(function(x){ x.classList.remove('drop-on'); }); }
+  function clearIns(){ document.querySelectorAll('.ins-b,.ins-a').forEach(function(x){ x.classList.remove('ins-b','ins-a'); }); }
+  function clearDrop(){ document.querySelectorAll('.drop-on').forEach(function(x){ x.classList.remove('drop-on'); }); clearIns(); }
+  /* where in zone z would a card dropped at height y land? */
+  function landing(z,y){
+    var cards=[].filter.call(z.querySelectorAll('.card[data-id]'),function(c){ return c.dataset.id!==_dragId&&c.closest('[data-drop]')===z; });
+    for(var i=0;i<cards.length;i++){ var r=cards[i].getBoundingClientRect(); if(y<r.top+r.height/2) return {before:cards[i].dataset.id,el:cards[i],cls:'ins-b'}; }
+    return {before:'',el:cards[cards.length-1]||null,cls:'ins-a'};
+  }
   function endDrag(){ _dragId=null; clearDrop(); document.body.classList.remove('dnd'); document.querySelectorAll('.drag-src').forEach(function(x){ x.classList.remove('drag-src'); }); }
   c.addEventListener('dragstart',function(e){
     var cd=e.target.closest?e.target.closest('.card[draggable="true"]'):null; if(!cd) return;
@@ -1865,10 +1916,17 @@ function applyDrop(id,z){
     if(!_dragId) return; var z=e.target.closest('[data-drop]'); if(!z) return;
     e.preventDefault(); e.dataTransfer.dropEffect='move';
     if(!z.classList.contains('drop-on')){ clearDrop(); z.classList.add('drop-on'); }
+    if(canOrder(z.dataset.drop)){
+      var L=landing(z,e.clientY);
+      if(L.el&&!L.el.classList.contains(L.cls)){ clearIns(); L.el.classList.add(L.cls); } else if(!L.el) clearIns();
+    } else clearIns();
   });
   c.addEventListener('drop',function(e){
     if(!_dragId) return; var z=e.target.closest('[data-drop]'); if(!z) return;
-    e.preventDefault(); var id=_dragId, zone=z.dataset.drop; endDrag(); applyDrop(id,zone);
+    e.preventDefault(); var id=_dragId, zone=z.dataset.drop, L=canOrder(zone)?landing(z,e.clientY):null;
+    endDrag(); applyDrop(id,zone);
+    var t=find(id);
+    if(L&&t&&zoneOf(t)===zone&&reorder(id,zone,L.before)) flash([id]);
   });
   c.addEventListener('dragend',function(){ if(_dragId||_renderPending){ endDrag(); _renderPending=false; render(true); } });
 })();
@@ -2368,7 +2426,7 @@ function sortAct(id,v){
 var F={q:[],i:0,len:25,rem:25*60,run:false,end:0,tm:null,wake:null,timerVisible:false};
 function mmss(s){ return pad(Math.floor(s/60))+':'+pad(s%60); }
 function startFocus(firstId){
-  var ts=todaySet(), q=ts.must.items.concat(ts.also).map(function(t){ return t.id; });
+  var q=boardData().today.map(function(t){ return t.id; });
   if(firstId){ q=q.filter(function(x){ return x!==firstId; }); q.unshift(firstId); }
   fPause(); F.q=q; F.i=0; F.timerVisible=false; F.rem=F.len*60;
   $('focus-ov').classList.add('on'); document.body.classList.add('focus-on');
